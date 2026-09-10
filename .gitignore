@@ -1,0 +1,8 @@
+# 依赖与产物
+node_modules/
+*.log
+
+# 编辑器与系统
+.vscode/
+.DS_Store
+Thumbs.db

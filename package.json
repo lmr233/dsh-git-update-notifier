@@ -1,0 +1,55 @@
+{
+  "name": "dsh-git-update-notifier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "每天首次启动 dsh 时，用 git 检测 deepseek-harness 上游是否有新提交，并在 Web GUI 中交由用户决定是否更新。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "git",
+    "update"
+  ],
+  "homepage": "https://github.com/lmr233/dsh-git-update-notifier#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lmr233/dsh-git-update-notifier.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lmr233/dsh-git-update-notifier/issues"
+  },
+  "author": "lmr233",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/client.js",
+    "test": "node test/proxy-parse.mjs && node test/client-render.mjs && node test/local-check.mjs && node test/e2e-local-repo.mjs",
+    "test:live": "node test/live-upstream.mjs"
+  },
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}

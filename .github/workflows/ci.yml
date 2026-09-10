@@ -1,0 +1,35 @@
+name: CI
+
+# 只跑离线测试：这些用例不依赖真实网络，能在任意 runner 上稳定复现。
+# test/live-upstream.mjs 需要真实访问 GitHub（且依赖本机系统代理），
+# 环境相关，故意不进 CI —— 它由开发者手动用 `npm run test:live` 触发。
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    name: 离线测试 (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 覆盖 package.json engines 声明的两个区间。
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: 语法检查
+        run: npm run check
+
+      - name: 离线测试
+        run: npm test

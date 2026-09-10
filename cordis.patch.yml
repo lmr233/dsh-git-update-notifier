@@ -1,0 +1,6 @@
+# dsh-git-update-notifier 的组合层。
+# 往 profile 的层级栈插入一行：宿主端检测 + Web GUI 询问卡片。
+# host 半注入 webServer（没有 web 服务的 profile 会保持 PENDING，属预期）。
+- insert:
+    - id: dsh-git-update-notifier
+      name: 'dsh-git-update-notifier'
