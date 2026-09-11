@@ -2,7 +2,7 @@
  * 宿主端本地验证：不起 dsh，直接用假 ctx 驱动插件。
  *
  * 验证内容：
- * 1. apply() 能正常挂载并注册 11 条路由；
+ * 1. apply() 能正常挂载并注册 12 条路由；
  * 2. 写路由的 loopback 网关与 GET-only 的方法限制；
  * 3. 找不到 checkout 时降级为 error 状态，而不是抛错。
  *
@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 11, `注册了 11 条路由（实际 ${routes.length}）`)
+assert(routes.length === 12, `注册了 12 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -183,6 +183,17 @@ assert(diagnosticsBody.summary === null || typeof diagnosticsBody.summary === 'o
 assert(diagnosticsBody.content === null, '没有诊断文件时内容为 null')
 const diagnosticsPost = await call('/dsh-git-update-notifier/diagnostics.json')
 assert(diagnosticsPost.status === 405, `诊断路由拒绝 POST（HTTP ${diagnosticsPost.status}）`)
+
+console.log('\n=== 11. 插件自身更新入口 ===')
+const pluginUpdate = await call('/dsh-git-update-notifier/plugin/update')
+assert(pluginUpdate.status === 409, `没有可更新版本时返回 409（实际 ${pluginUpdate.status}）`)
+const pluginForeign = await call('/dsh-git-update-notifier/plugin/update', 'POST', '8.8.4.4')
+assert(pluginForeign.status === 403, '非本机来源触发插件更新被拒')
+const pluginGet = await call('/dsh-git-update-notifier/plugin/update', 'GET')
+assert(pluginGet.status === 405, `插件更新路由拒绝 GET（HTTP ${pluginGet.status}）`)
+
+const selfField = JSON.parse((await call('/dsh-git-update-notifier/status.json', 'GET')).body)
+assert('selfUpdate' in selfField, '快照带出插件自身的更新状态字段')
 
 console.log('')
 if (failed > 0) {

@@ -1,5 +1,18 @@
 # Roadmap
 
+## v0.2.8（已发布 · 2026-09-11）
+
+> 发布归档见 [docs/releases/v0.2.8.md](docs/releases/v0.2.8.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+### 已完成
+
+- [x] **插件自身的更新检测**：判形态（git 检出 / `github:` 依赖 / npm 依赖 / 手工副本）
+  后决定去哪儿问版本，**GitHub 始终兜底** —— 手工复制进 `node_modules` 的副本也能被检测到。
+- [x] **`POST /plugin/update`**：按来源更新插件自己（快进合并 / `npm install`）；
+  手工副本明确拒绝并给出手动做法。
+- [x] **两条检查线互不影响**：自身检查失败只记日志，不污染 dsh 本体的结论。
+- [x] **`DSH_GIT_UPDATE_NOTIFIER_GITHUB_API`**：指向镜像或本地 mock（测试据此离线验证）。
+
 ## v0.2.7（已发布 · 2026-09-11）
 
 > 发布归档见 [docs/releases/v0.2.7.md](docs/releases/v0.2.7.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。

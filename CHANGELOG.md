@@ -3,6 +3,32 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.8] - 2026-09-11
+
+补上一个明显的盲区：插件一直在检测 dsh 本体，却**检测不了自己**。
+完整归档见 [docs/releases/v0.2.8.md](docs/releases/v0.2.8.md)。
+
+### 新增
+
+- **插件自身的更新检测**：新增 `lib/selfcheck.js`。先判定"自己是怎么被装进来的"
+  —— git 检出 / `github:` 依赖 / npm 依赖 / 手工放进 `node_modules` 的副本 —— 再据此
+  决定去哪儿问最新版本：git 检出走 git 上游、npm 依赖走 registry，而 **GitHub 始终兜底**。
+  所以即使只是被手工复制进去的一份副本（没有 `.git`、宿主清单里也没声明），
+  也能通过 GitHub 的 release / tag 检测到新版。设置页显示「插件自身已是最新」
+  或「插件自身有新版 X → Y（来源）」。
+- **`POST /plugin/update`**：按来源更新插件自己 —— git 检出走 `fetch` + 快进合并，
+  npm / github 依赖走 `npm install`。手工副本**明确拒绝**并给出手动做法
+  （不知道这份副本从哪来时，最安全的动作是不动它）。更新的是宿主端代码，
+  因此提示需要**重启 `dsh web`**。
+- 新增环境变量 `DSH_GIT_UPDATE_NOTIFIER_GITHUB_API`（指向镜像或本地 mock；
+  测试用它离线验证查询与回退逻辑）。
+- 每次检查都会**顺带**查一次自身更新。它失败只记日志，**绝不影响 dsh 本体的结论**。
+
+### 变更
+
+- HTTP 路由由 11 条增至 12 条（新增 `POST /plugin/update`）。
+- `npm test` 增至 **10** 个脚本（新增 `test/selfcheck.mjs`）。
+
 ## [0.2.7] - 2026-09-11
 
 让"更新失败"这件事**可检修**：失败时留下完整现场（命令、退出码、完整 stdout / stderr、
@@ -186,6 +212,7 @@
   模块缓存会持有已加载模块，卸载再重新挂载插件也不会重新 import。
   客户端半（`lib/client.js`）不受此限，刷新页面即可。
 
+[0.2.8]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.8
 [0.2.7]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.7
 [0.2.6]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.6
 [0.2.5]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.5

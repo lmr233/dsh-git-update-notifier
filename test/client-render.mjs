@@ -678,5 +678,85 @@ console.log(`  ${diagnosticsCalls.join(', ')}`)
 assert(diagnosticsCalls.includes('GET /dsh-git-update-notifier/diagnostics.json'),
   '点击后去取 /diagnostics.json')
 
+console.log('\n=== 15. 插件自身的更新状态 ===')
+const sectionSelf = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    selfUpdate: {
+      status: 'update-available',
+      layout: 'manual',
+      localVersion: '0.2.7',
+      remoteVersion: '0.2.8',
+      source: 'github-release',
+      canAutoUpdate: true,
+      hint: null,
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const selfText = collectText(sectionSelf).join(' | ')
+const selfButtons = collectButtons(sectionSelf).map((node) => collectText(node).join(''))
+console.log(`  插件自身行：${selfText.includes('插件自身有新版') ? '有' : '无'}`)
+assert(selfText.includes('插件自身有新版'), '显示插件自身有新版本')
+assert(selfText.includes('0.2.7') && selfText.includes('0.2.8'), '带出本地与远端版本')
+assert(selfText.includes('github-release'), '说明版本是从哪儿问到的')
+assert(selfButtons.includes('更新插件'), '可自动更新时给出「更新插件」按钮')
+
+fetchCalls.length = 0
+const pluginButton = collectButtons(sectionSelf)
+  .find((node) => collectText(node).join('') === '更新插件')
+pluginButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const pluginCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${pluginCalls.join(', ')}`)
+assert(pluginCalls.includes('POST /dsh-git-update-notifier/plugin/update'), '「更新插件」打到 /plugin/update')
+
+// 不能自动更新时不给按钮，但要把做法说清楚。
+const sectionSelfManual = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    selfUpdate: {
+      status: 'update-available',
+      layout: 'manual',
+      localVersion: '0.2.7',
+      remoteVersion: '0.2.8',
+      source: 'github-release',
+      canAutoUpdate: false,
+      hint: '这份副本是手工放进 node_modules 的，可重新执行 dsh plugin add github:lmr233/dsh-git-update-notifier。',
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const selfManualText = collectText(sectionSelfManual).join(' | ')
+const selfManualButtons = collectButtons(sectionSelfManual).map((node) => collectText(node).join(''))
+assert(selfManualText.includes('dsh plugin add'), '不能自动更新时给出手动做法')
+assert(!selfManualButtons.includes('更新插件'), '不能自动更新时不显示「更新插件」')
+
+const sectionSelfLatest = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    selfUpdate: {
+      status: 'up-to-date',
+      layout: 'checkout',
+      localVersion: '0.2.7',
+      remoteVersion: '0.2.7',
+      source: 'git',
+      canAutoUpdate: true,
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+assert(collectText(sectionSelfLatest).join(' | ').includes('插件自身已是最新'), '已是最新时如实显示')
+
 console.log('\n全部断言通过。')
 process.exit(0)

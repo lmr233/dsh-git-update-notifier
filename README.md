@@ -8,7 +8,7 @@
 >
 > 鉴于目前dsh更新频率高，但在目前的插件中并没有针对dsh更新推送的插件，所以制作了此插件用来检查并更新dsh，这是本人第一个作品，纯ai，如有意见可提出
 
-每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。更新本身支持**断点续传**（中断了就从断点接着下）、**安装前校验**（sha512 / sha1 / 包内身份三层）、**安装失败后的重试与回退**，以及**失败诊断**（完整现场落盘，可展开复制）。当前版本 **`0.2.7`**。
+每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。更新本身支持**断点续传**（中断了就从断点接着下）、**安装前校验**（sha512 / sha1 / 包内身份三层）、**安装失败后的重试与回退**，以及**失败诊断**（完整现场落盘，可展开复制）。它也**检测自己**有没有新版 —— 见[插件自身的更新](#插件自身的更新)。当前版本 **`0.2.8`**。
 
 ## 为什么用 git，而不是查 npm
 
@@ -38,6 +38,7 @@
 | 更新中被打断 | 下载进度落在 `.part.json` 里 —— 网络断开、主动「中断下载」、甚至 dsh 重启，下次都**从断点继续**；「中断并丢弃断点」才从头再来 |
 | 安装阶段失败 | 保留已校验的包并记下"更新前"的回退点，设置页给出「**重试安装**」（复用本地包，不重新下载）与「**回退到更新前**」两个按钮，并标出这是第几次尝试 |
 | 任一阶段失败 | 把完整现场写进 `$DSH_HOME/dsh-git-update-notifier-logs/`：命令、退出码、完整 stdout / stderr、形态与路径、（合并失败时）`git status --short`。设置页给出诊断文件路径与「**查看完整报错**」，点开即可复制去检修 |
+| 插件自己有新版 | 设置页显示「插件自身有新版：X → Y（来源）」，并给出「**更新插件**」；更新的是宿主端代码，所以同样要**重启 `dsh web`** |
 | 点「延期…」 | 选择 1 天 / 3 天 / 1 周 / 2 周 / **1 个月**；到期前不再弹浮层卡片，设置页仍可查看与手动更新（**上限一个月**，超出按上限处理）；延期期间可随时「取消延期」恢复提醒 |
 | 点「稍后」 | 当天不再询问；次日 24 时（或次日启动时的补检）重新检查 |
 | 检查失败（如断网） | 弹一张**低调的失败卡片**（带原因与「重新检查」），而不是静默无反应 |
@@ -83,6 +84,23 @@
 4. **安装失败也能回退**：回退点不再只在更新成功后记录 —— 安装阶段（`npm install` / 快进合并）
    失败时同样把它正式记下来，所以那一刻就能直接「回退到更新前」，而不必等到"更新成功之后"。
    失败现场还会保留已校验的包，供「重试安装」复用。
+
+### 插件自身的更新
+
+除了 dsh 本体，插件也**检测自己**有没有新版 —— 否则它就是个"只盯着别人的更新、自己却停在旧版"的工具。
+
+难点在于**它是怎么被装进来的**：可能是 git 检出，可能是 profile 里声明的 `github:` 或 npm 依赖，也可能只是被手工复制进 `node_modules` 的一份副本。所以先判形态，再决定去哪儿问版本：
+
+| 自身形态 | 判定依据 | 远端来源 | 「更新插件」的动作 |
+|---|---|---|---|
+| git 检出 | 自己所在目录（或上溯）有 `.git` | git 上游 | `git fetch` + `merge --ff-only` |
+| npm 依赖 | 宿主清单里声明为本包（semver / `^` / `~`） | npm registry | `npm install <包名>@<目标版本>` |
+| github 依赖 | 宿主清单里声明为 `github:` / git URL | GitHub | `npm install github:<仓库>#v<目标版本>` |
+| 手工副本 | 目录在，但宿主清单里没有声明 | **只用 GitHub 兜底** | 不自动更新，给出手动做法 |
+
+关键在最后一行：手工副本没有任何声明可查，GitHub 的 release / tag 就成了唯一来源；而既然不知道这份副本从哪来，插件就**不做**自动替换，只如实说明并给出建议（例如 `dsh plugin add github:lmr233/dsh-git-update-notifier`）。
+
+设置页会显示「插件自身已是最新（X）」或「插件自身有新版：X → Y（来源）」。这条检查与 dsh 本体的检查**互不影响** —— 它失败只记一条日志。
 
 ## 支持的安装形态
 
@@ -187,6 +205,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 | `DSH_GIT_UPDATE_NOTIFIER_ROOT` | 直接指定 `@deepseek-ai/dsh` 包目录（**独占**：设置后不再自动探测其它候选） |
 | `DSH_GIT_UPDATE_NOTIFIER_CHANNEL` | npm registry 的发布通道，默认 `latest` |
 | `DSH_GIT_UPDATE_NOTIFIER_REGISTRY` | registry 基址，默认 `https://registry.npmjs.org` |
+| `DSH_GIT_UPDATE_NOTIFIER_GITHUB_API` | GitHub API 基址，默认 `https://api.github.com`（指向镜像或本地 mock；插件自身的更新检测用它） |
 | `DSH_HOME` | 决定状态文件位置（默认 `~/.dsh`） |
 
 **checkout 是怎么找到的**：读取 `$DSH_HOME/profiles/node_modules/@deepseek-ai/dsh`，对其 `realpath`（解析 junction / 符号链接），再逐级上溯到第一个含 `.git` 的目录。因此没有任何硬编码路径，换机器也能自动适配。找不到时才需要 `DSH_GIT_UPDATE_NOTIFIER_ROOT`。
@@ -224,6 +243,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 | `/dsh-git-update-notifier/dismiss` | POST | 当天不再询问 |
 | `/dsh-git-update-notifier/snooze?days=N` | POST | 延期 N 天（1–30，超出按上限；`days=0` 取消延期） |
 | `/dsh-git-update-notifier/rollback` | POST | 回退：带 `?target=<提交号\|版本号>` 回退到指定目标，不带则回退到更新前记录的点 |
+| `/dsh-git-update-notifier/plugin/update` | POST | 更新**插件自己**：git 检出走快进合并，npm / github 依赖走 `npm install`；手工副本明确拒绝 |
 | `/dsh-git-update-notifier/diagnostics.json` | GET | 最近一次失败的完整现场（命令、退出码、完整输出），或磁盘上诊断文件的内容 |
 | `/dsh-git-update-notifier/update/retry` | POST | 安装失败后**只重试安装**：复用已校验的本地包（源码形态复用 `FETCH_HEAD`），不重新下载 |
 | `/dsh-git-update-notifier/rollback/targets.json` | GET | 列出可选回退目标（源码形态逐个读取提交自己的版本号展示，npx / npm 形态取历史版本） |
@@ -259,6 +279,7 @@ npm run test:live           # 真实上游：经系统代理抓取真实 GitHub�
 node test/proxy-parse.mjs    # 代理取值归一化（纯函数，不联网）
 node test/download.mjs       # 下载器：断点续传的几条现实路径（本地 http server 扮演 tarball 端点）
 node test/verify.mjs         # 包校验：篡改、身份不符、缺凭据（手写最小 UStar tar 构造用例）
+node test/selfcheck.mjs      # 插件自身：形态判定（普通 / pnpm / github: 声明）与 GitHub 查询回退
 node test/client-render.mjs  # 客户端：模块协议登记、导出形态、卡片各状态与按钮请求
 node test/local-check.mjs    # 宿主端：路由注册与 loopback 网关
 node test/e2e-local-repo.mjs # 端到端：本地 bare 仓库验证检测→更新→失败时字段清空
@@ -280,6 +301,7 @@ dsh-git-update-notifier/
 │   ├── index.js        # 宿主端：代理探测、形态识别、检测、状态持久化、更新/回退/重试、诊断日志、HTTP 路由
 │   ├── download.js     # 带 Range 断点续传的下载器（跨进程断点、可取消）
 │   ├── verify.js       # 更新包校验（sha512 / sha1 / 包内身份）与最小 tar 读取
+│   ├── selfcheck.js    # 插件自身的定位、安装形态判定与 GitHub 版本查询
 │   ├── registry.js     # registry 查询（dist-tags、单版本 manifest）
 │   ├── semver.js       # 预发布排序的最小实现
 │   └── client.js       # 客户端：手写 bundle，shell.overlay 询问卡片
@@ -290,6 +312,6 @@ dsh-git-update-notifier/
 
 ## 版本与路线图
 
-- 当前版本：`0.2.7`（发布归档：[v0.2.7](docs/releases/v0.2.7.md)、[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
+- 当前版本：`0.2.8`（发布归档：[v0.2.8](docs/releases/v0.2.8.md)、[v0.2.7](docs/releases/v0.2.7.md)、[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
 - 后续计划：[ROADMAP.md](ROADMAP.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)
