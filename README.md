@@ -70,8 +70,10 @@
 2. 更新成功后，在 `$DSH_HOME` 落一个**不依赖 dsh 运行**的回退脚本
    （`dsh-rollback.cmd` / `dsh-rollback.sh`）—— dsh 若起不来，插件自己也跑不起来，
    所以回退入口必须落在 dsh 之外；
-3. dsh 能正常启动时，设置页显示「上次更新：X → Y」并提供「**回退到更新前**」按钮
-   （需二次确认），同时给出上面那个脚本的路径。
+3. dsh 能正常启动时，设置页显示「上次更新：X → Y」，并提供**常驻**的「**回退…**」入口：
+   点开后自选目标 —— 源码形态列出上游最近的若干提交，npx / npm 形态列出已发布的历史版本 ——
+   选中后按钮写明「确认回退到 X」再执行；不选目标时回退到上面记录的更新前那一刻。
+   同时给出上面那个脚本的路径。
 
 ## 支持的安装形态
 
@@ -207,16 +209,19 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 |---|---|---|
 | `/dsh-git-update-notifier/status.json` | GET | 当前检查快照 |
 | `/dsh-git-update-notifier/check` | POST | 强制重新检查（无视"今天已检查过"） |
-| `/dsh-git-update-notifier/update` | POST | 执行 `git pull --ff-only` |
+| `/dsh-git-update-notifier/update` | POST | 执行 `git pull --ff-only`（npx / npm 形态则为 `npm install`） |
 | `/dsh-git-update-notifier/dismiss` | POST | 当天不再询问 |
+| `/dsh-git-update-notifier/snooze?days=N` | POST | 延期 N 天（1–30，超出按上限；`days=0` 取消延期） |
+| `/dsh-git-update-notifier/rollback` | POST | 回退：带 `?target=<提交号\|版本号>` 回退到指定目标，不带则回退到更新前记录的点 |
+| `/dsh-git-update-notifier/rollback/targets.json` | GET | 列出可选回退目标（源码形态取上游最近提交，npx / npm 形态取历史版本） |
 
-三个 POST 都要求来源是 loopback（`127.0.0.1` / `::1`），局域网里的其它客户端拿不到触发 git 操作的能力。
+上面所有写路由都要求来源是 loopback（`127.0.0.1` / `::1`），局域网里的其它客户端拿不到触发 git 操作的能力。
 
 ## 已知限制
 
 - **更新后需要重新构建并重启才生效**。`git pull` 只推进源码；`dsh` 运行的是构建产物，拉取后需自行 `pnpm build:lib`（或对应构建命令）并重启 `dsh web`。卡片在更新成功后会明确提示这一点。
 - **只做快进合并**。本地有未提交改动或分支已分叉时，`git pull --ff-only` 会失败并在卡片上显示原因，不会尝试自动解决。
-- **进程常驻不重启时不会检查**。触发点是"每天首次启动"，长期不重启 dsh 就不会有新检查；可用卡片上的「重新检查」或直接 POST `/check` 手动触发。
+- **进程常驻不重启时按日定时触发**。触发点是**电脑本地时间每天 24 时**（启动时补检当天遗漏的那次），不是"每次启动"；可用设置页的「手动检测更新」或直接 POST `/check` 随时触发。
 - 需要 web profile：宿主端 `inject: ['webServer']`，在没有 web 服务的 profile 里会保持 PENDING。
 - 代理自动探测目前覆盖 Windows（注册表）与环境变量；Linux 走环境变量，macOS 的系统代理（`scutil --proxy`）尚未覆盖。
 

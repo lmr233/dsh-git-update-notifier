@@ -406,6 +406,11 @@ const ROLLBACK_INFO = {
   layout: 'source', from: '0.1.5-rc.1', to: '0.1.5-rc.2',
   at: '2026-09-11T00:00:00.000Z', head: 'abc1234', script: 'C:\\Users\\x\\.dsh\\dsh-rollback.cmd',
 }
+const ROLLBACK_CLOSED = { open: false, targets: null, pick: null }
+const TARGETS = [
+  { id: 'abcdef1234567890', label: 'abcdef1 2026-09-10 回退目标一', kind: 'commit' },
+  { id: '1234567890abcdef', label: '1234567 2026-09-09 回退目标二', kind: 'commit' },
+]
 const withRollback = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null])
 const rollbackText = collectText(withRollback).join(' | ')
 console.log(`  回退信息：${rollbackText}`)
@@ -414,26 +419,47 @@ assert(rollbackText.includes('0.1.5-rc.1 → 0.1.5-rc.2'), '展示更新前后�
 assert(rollbackText.includes('dsh-rollback.cmd'), '给出不依赖 dsh 的回退脚本路径')
 
 const rollbackButtons = collectButtons(withRollback).map((node) => collectText(node).join(''))
-assert(rollbackButtons.includes('回退到更新前'), '提供「回退到更新前」按钮')
-assert(!rollbackButtons.includes('确认回退'), '首次点击前不直接暴露确认按钮（需二次确认）')
+assert(rollbackButtons.includes('回退…'), '提供常驻的「回退…」入口')
+assert(!rollbackButtons.some((label) => label.startsWith('确认回退')), '未选目标前不出现确认按钮')
 
-const confirmStage = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, true])
+// 展开：读取中的占位
+const loadingTargets = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, { open: true, targets: null, pick: null }])
+assert(collectText(loadingTargets).join(' | ').includes('读取可选目标'), '展开时先显示读取中')
+
+// 展开：列出可选目标
+const listed = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, { open: true, targets: TARGETS, pick: null }])
+const listedButtons = collectButtons(listed).map((node) => collectText(node).join(''))
+console.log(`  可选回退目标：${listedButtons.join(' / ')}`)
+assert(listedButtons.some((label) => label.includes('回退目标一')), '列出宿主返回的可选目标')
+assert(listedButtons.includes('取消'), '展开后可取消')
+
+// 选中目标：二次确认
+const picked = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, { open: true, targets: TARGETS, pick: TARGETS[0] }])
+const pickedButtons = collectButtons(picked).map((node) => collectText(node).join(''))
+console.log(`  选中后的按钮：${pickedButtons.join(' / ')}`)
+assert(pickedButtons.some((label) => label.startsWith('确认回退到') && label.includes('回退目标一')), '确认按钮写明回退目标')
+
+fetchCalls.length = 0
+const confirmRollback = collectButtons(picked).find((node) => collectText(node).join('').startsWith('确认回退到'))
+confirmRollback.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const rollbackTargetCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${rollbackTargetCalls.join(', ')}`)
+assert(rollbackTargetCalls.includes('POST /dsh-git-update-notifier/rollback?target=abcdef1234567890'), '确认后带着所选 target 发出 POST /rollback')
+
+// 没有回退记录时入口仍然常驻
+const noRecordButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
+assert(noRecordButtons.includes('回退…'), '没有回退记录时「回退…」入口仍在')
+
+const confirmStage = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, { open: true, targets: TARGETS, pick: TARGETS[0] }])
 const confirmButtons = collectButtons(confirmStage).map((node) => collectText(node).join(''))
-assert(confirmButtons.includes('确认回退'), '点一次后出现「确认回退」')
+assert(confirmButtons.some((label) => label.startsWith('确认回退到')), '选中目标后出现确认按钮')
 assert(confirmButtons.includes('取消'), '二次确认可取消')
 
 fetchCalls.length = 0
-const yesButton = collectButtons(confirmStage).find((node) => collectText(node).join('') === '确认回退')
-yesButton.props.onClick()
-await new Promise((done) => setImmediate(done))
-await new Promise((done) => setImmediate(done))
-const rollbackCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
-console.log(`  ${rollbackCalls.join(', ')}`)
-assert(rollbackCalls.includes('POST /dsh-git-update-notifier/rollback'), '确认后发出 POST /rollback')
 
-assert(renderSlot(sectionEntry, [UPDATE_AVAILABLE, null, null]) !== null, '没有回退记录时区块照常渲染')
-const noRollbackButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
-assert(!noRollbackButtons.includes('回退到更新前'), '没有回退记录时不显示回退按钮')
+
 
 const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
 const currentText = collectText(sectionCurrent).join(' | ')

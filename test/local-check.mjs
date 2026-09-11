@@ -2,7 +2,7 @@
  * 宿主端本地验证：不起 dsh，直接用假 ctx 驱动插件。
  *
  * 验证内容：
- * 1. apply() 能正常挂载并注册 4 条路由；
+ * 1. apply() 能正常挂载并注册 7 条路由；
  * 2. 写路由的 loopback 网关与 GET-only 的方法限制；
  * 3. 找不到 checkout 时降级为 error 状态，而不是抛错。
  *
@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 6, `注册了 6 条路由（实际 ${routes.length}）`)
+assert(routes.length === 7, `注册了 7 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -94,6 +94,13 @@ const rollbackNoPoint = await call('/dsh-git-update-notifier/rollback')
 assert(rollbackNoPoint.status === 409, `尚无更新记录时回退被拒（HTTP ${rollbackNoPoint.status}）`)
 const rollbackForeign = await call('/dsh-git-update-notifier/rollback', 'POST', '8.8.4.4')
 assert(rollbackForeign.status === 403, '非本机来源触发回退同样被拒')
+const targets = await call('/dsh-git-update-notifier/rollback/targets.json', 'GET')
+assert(targets.status === 200, `可选目标路由可用（HTTP ${targets.status}）`)
+const targetBody = JSON.parse(targets.body)
+assert(Array.isArray(targetBody.targets), '可选目标以数组返回')
+console.log(`     可选目标 ${targetBody.targets.length} 项：${targetBody.targets.map((item) => item.label).join(' / ') || '（无）'}`)
+const badTarget = await call('/dsh-git-update-notifier/rollback?target=..%2F..%2Fetc', 'POST')
+assert(badTarget.status === 400, `非法 target 被拒（HTTP ${badTarget.status}）`)
 
 console.log('\n=== 4. 延期参数校验与上限 ===')
 const snoozeWeek = await call('/dsh-git-update-notifier/snooze?days=7')
