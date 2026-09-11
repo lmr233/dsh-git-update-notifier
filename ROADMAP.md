@@ -1,5 +1,19 @@
 # Roadmap
 
+## v0.2.7（已发布 · 2026-09-11）
+
+> 发布归档见 [docs/releases/v0.2.7.md](docs/releases/v0.2.7.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+### 已完成
+
+- [x] **失败诊断日志**：任一阶段失败都把完整现场写进
+  `$DSH_HOME/dsh-git-update-notifier-logs/`（命令、退出码、完整 stdout / stderr、
+  形态与路径、代理、运行时；合并失败时附带 `git status --short`），只留最近 20 份。
+- [x] **`GET /diagnostics.json`**：取回最近一次失败的完整现场（进程内优先，磁盘兜底；
+  只允许读日志目录内的文件）。
+- [x] **错误信息可检修**：失败消息带退出码，设置页给出命令、退出码与诊断日志路径，
+  并可用「查看完整报错」在页面内摊开完整输出（懒加载）。
+
 ## v0.2.6（已发布 · 2026-09-11）
 
 > 发布归档见 [docs/releases/v0.2.6.md](docs/releases/v0.2.6.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。

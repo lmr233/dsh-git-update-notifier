@@ -2,7 +2,7 @@
  * 宿主端本地验证：不起 dsh，直接用假 ctx 驱动插件。
  *
  * 验证内容：
- * 1. apply() 能正常挂载并注册 10 条路由；
+ * 1. apply() 能正常挂载并注册 11 条路由；
  * 2. 写路由的 loopback 网关与 GET-only 的方法限制；
  * 3. 找不到 checkout 时降级为 error 状态，而不是抛错。
  *
@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 10, `注册了 10 条路由（实际 ${routes.length}）`)
+assert(routes.length === 11, `注册了 11 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -172,6 +172,17 @@ const statusBody = JSON.parse((await call('/dsh-git-update-notifier/status.json'
 assert(statusBody.stagedPackage === null, '没有待安装的包时 stagedPackage 为 null')
 assert(statusBody.lastUpdate === null || typeof statusBody.lastUpdate === 'object',
   '快照带出「上一次更新结论」字段')
+
+console.log('\n=== 10. 失败诊断 ===')
+const diagnostics = await call('/dsh-git-update-notifier/diagnostics.json', 'GET')
+assert(diagnostics.status === 200, `诊断路由可用（HTTP ${diagnostics.status}）`)
+const diagnosticsBody = JSON.parse(diagnostics.body)
+assert(diagnosticsBody.ok === true, '返回 ok')
+assert(diagnosticsBody.latest === null, '还没失败过时没有「最近一次现场」')
+assert(diagnosticsBody.summary === null || typeof diagnosticsBody.summary === 'object', '带出失败摘要字段')
+assert(diagnosticsBody.content === null, '没有诊断文件时内容为 null')
+const diagnosticsPost = await call('/dsh-git-update-notifier/diagnostics.json')
+assert(diagnosticsPost.status === 405, `诊断路由拒绝 POST（HTTP ${diagnosticsPost.status}）`)
 
 console.log('')
 if (failed > 0) {

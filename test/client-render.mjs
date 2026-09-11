@@ -632,5 +632,51 @@ const sectionNeedsFresh = renderSlot(sectionEntry, [
 const freshText = collectText(sectionNeedsFresh).join(' | ')
 assert(freshText.includes('本地安装包已失效'), '包失效时如实说明需要重新下载')
 
+console.log('\n=== 14. 失败诊断的展示与展开 ===')
+const sectionDiagnosed = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    pendingDownload: null,
+    lastUpdate: {
+      ok: false,
+      at: '2026-09-11T00:00:00.000Z',
+      message: 'npm install 失败（退出码 1）：EACCES',
+      phase: 'install',
+      canRetry: true,
+      canRollback: true,
+      attempt: 1,
+      diagnostic: {
+        file: 'C:\\Users\\x\\.dsh\\dsh-git-update-notifier-logs\\update-x-install.log',
+        command: 'npm.cmd install C:\\tmp\\dsh.tgz --no-save',
+        exitCode: 1,
+        phase: 'install',
+        at: '2026-09-11T00:00:00.000Z',
+      },
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const diagnosedText = collectText(sectionDiagnosed).join(' | ')
+const diagnosedButtons = collectButtons(sectionDiagnosed).map((node) => collectText(node).join(''))
+console.log(`  诊断行：${diagnosedText.includes('诊断日志') ? '有' : '无'}`)
+assert(diagnosedText.includes('命令：npm.cmd install'), '展示失败时执行的命令')
+assert(diagnosedText.includes('退出码：1'), '展示退出码')
+assert(diagnosedText.includes('诊断日志：'), '给出诊断日志的落盘路径')
+assert(diagnosedButtons.includes('查看完整报错'), '提供「查看完整报错」入口')
+
+fetchCalls.length = 0
+const diagnosticsButton = collectButtons(sectionDiagnosed)
+  .find((node) => collectText(node).join('') === '查看完整报错')
+diagnosticsButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const diagnosticsCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${diagnosticsCalls.join(', ')}`)
+assert(diagnosticsCalls.includes('GET /dsh-git-update-notifier/diagnostics.json'),
+  '点击后去取 /diagnostics.json')
+
 console.log('\n全部断言通过。')
 process.exit(0)

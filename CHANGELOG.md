@@ -3,6 +3,32 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.7] - 2026-09-11
+
+让"更新失败"这件事**可检修**：失败时留下完整现场（命令、退出码、完整 stdout / stderr、
+工作区状态），而不是只给一句裁剪过的错误。
+完整归档见 [docs/releases/v0.2.7.md](docs/releases/v0.2.7.md)。
+
+### 新增
+
+- **失败诊断日志**：`resolve` / `download` / `verify` / `install` / `fetch` / `merge` 任一阶段失败，
+  都把完整现场写进 `$DSH_HOME/dsh-git-update-notifier-logs/update-<时间>-<阶段>.log` ——
+  含插件版本、安装形态、包位置 / 仓库根 / 安装位置、本地与目标版本、代理、运行时、
+  执行的命令、退出码、完整 stdout 与 stderr，以及（合并失败时）`git status --short`。
+  只保留最近 20 份，自动清理更旧的。
+- **`GET /diagnostics.json`**：返回最近一次失败的完整现场（进程内保存）或磁盘上的诊断文件内容，
+  供界面展开与复制。读文件时只允许读日志目录内的路径。
+- **错误信息带上退出码**：`npm install` / `git merge` 的失败消息由"失败：…"改为
+  "失败（退出码 N）：…"；命令与诊断文件路径一并写进状态，刷新页面后仍可见。
+- **设置页「查看完整报错」**：任何阶段的失败都会多出一行（命令 / 退出码 / 诊断日志路径）
+  与一个按钮，点开在页面内摊开完整输出，可直接复制去检修。完整输出是**懒加载**的 ——
+  不点就不请求。
+
+### 变更
+
+- HTTP 路由由 10 条增至 11 条（新增 `GET /diagnostics.json`）。
+- 卸载说明补上日志目录 `$DSH_HOME/dsh-git-update-notifier-logs/`。
+
 ## [0.2.6] - 2026-09-11
 
 补上更新流程最后一段的"出事了怎么办"：**安装失败可以只重试安装，也可以回退到更新前**。
@@ -160,6 +186,7 @@
   模块缓存会持有已加载模块，卸载再重新挂载插件也不会重新 import。
   客户端半（`lib/client.js`）不受此限，刷新页面即可。
 
+[0.2.7]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.7
 [0.2.6]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.6
 [0.2.5]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.5
 [0.2.0]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.0

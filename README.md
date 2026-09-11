@@ -8,7 +8,7 @@
 >
 > 鉴于目前dsh更新频率高，但在目前的插件中并没有针对dsh更新推送的插件，所以制作了此插件用来检查并更新dsh，这是本人第一个作品，纯ai，如有意见可提出
 
-每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。更新本身支持**断点续传**（中断了就从断点接着下）、**安装前校验**（sha512 / sha1 / 包内身份三层），以及**安装失败后的重试与回退**。当前版本 **`0.2.6`**。
+每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。更新本身支持**断点续传**（中断了就从断点接着下）、**安装前校验**（sha512 / sha1 / 包内身份三层）、**安装失败后的重试与回退**，以及**失败诊断**（完整现场落盘，可展开复制）。当前版本 **`0.2.7`**。
 
 ## 为什么用 git，而不是查 npm
 
@@ -37,6 +37,7 @@
 | 点「立即更新」 | **先下载到本地（可断点续传）并校验**，再安装：源码形态执行 `git fetch` + `git merge --ff-only`（只允许快进，绝不生成意外 merge commit）；npx / npm 形态下载目标版本的 tarball、校验 `integrity` / `shasum` / 包内身份后，安装这份**校验过的本地包** |
 | 更新中被打断 | 下载进度落在 `.part.json` 里 —— 网络断开、主动「中断下载」、甚至 dsh 重启，下次都**从断点继续**；「中断并丢弃断点」才从头再来 |
 | 安装阶段失败 | 保留已校验的包并记下"更新前"的回退点，设置页给出「**重试安装**」（复用本地包，不重新下载）与「**回退到更新前**」两个按钮，并标出这是第几次尝试 |
+| 任一阶段失败 | 把完整现场写进 `$DSH_HOME/dsh-git-update-notifier-logs/`：命令、退出码、完整 stdout / stderr、形态与路径、（合并失败时）`git status --short`。设置页给出诊断文件路径与「**查看完整报错**」，点开即可复制去检修 |
 | 点「延期…」 | 选择 1 天 / 3 天 / 1 周 / 2 周 / **1 个月**；到期前不再弹浮层卡片，设置页仍可查看与手动更新（**上限一个月**，超出按上限处理）；延期期间可随时「取消延期」恢复提醒 |
 | 点「稍后」 | 当天不再询问；次日 24 时（或次日启动时的补检）重新检查 |
 | 检查失败（如断网） | 弹一张**低调的失败卡片**（带原因与「重新检查」），而不是静默无反应 |
@@ -223,6 +224,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 | `/dsh-git-update-notifier/dismiss` | POST | 当天不再询问 |
 | `/dsh-git-update-notifier/snooze?days=N` | POST | 延期 N 天（1–30，超出按上限；`days=0` 取消延期） |
 | `/dsh-git-update-notifier/rollback` | POST | 回退：带 `?target=<提交号\|版本号>` 回退到指定目标，不带则回退到更新前记录的点 |
+| `/dsh-git-update-notifier/diagnostics.json` | GET | 最近一次失败的完整现场（命令、退出码、完整输出），或磁盘上诊断文件的内容 |
 | `/dsh-git-update-notifier/update/retry` | POST | 安装失败后**只重试安装**：复用已校验的本地包（源码形态复用 `FETCH_HEAD`），不重新下载 |
 | `/dsh-git-update-notifier/rollback/targets.json` | GET | 列出可选回退目标（源码形态逐个读取提交自己的版本号展示，npx / npm 形态取历史版本） |
 
@@ -244,7 +246,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 dsh plugin --profile web remove dsh-git-update-notifier
 ```
 
-再删掉 `$DSH_HOME/dsh-git-update-notifier.json` 与下载缓存目录 `$DSH_HOME/dsh-git-update-notifier-downloads/`（里面是已校验过的更新包与可能残留的 `.part` 断点）。
+再删掉 `$DSH_HOME/dsh-git-update-notifier.json`、下载缓存目录 `$DSH_HOME/dsh-git-update-notifier-downloads/`（里面是已校验过的更新包与可能残留的 `.part` 断点），以及诊断日志目录 `$DSH_HOME/dsh-git-update-notifier-logs/`。
 
 ## 开发与验证
 
@@ -275,7 +277,7 @@ dsh-git-update-notifier/
 ├── package.json        # dsh.bundle.patch + dsh.client 声明
 ├── cordis.patch.yml    # 插入本插件行的组合层
 ├── lib/
-│   ├── index.js        # 宿主端：代理探测、形态识别、检测、状态持久化、更新/回退、HTTP 路由
+│   ├── index.js        # 宿主端：代理探测、形态识别、检测、状态持久化、更新/回退/重试、诊断日志、HTTP 路由
 │   ├── download.js     # 带 Range 断点续传的下载器（跨进程断点、可取消）
 │   ├── verify.js       # 更新包校验（sha512 / sha1 / 包内身份）与最小 tar 读取
 │   ├── registry.js     # registry 查询（dist-tags、单版本 manifest）
@@ -288,6 +290,6 @@ dsh-git-update-notifier/
 
 ## 版本与路线图
 
-- 当前版本：`0.2.6`（发布归档：[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
+- 当前版本：`0.2.7`（发布归档：[v0.2.7](docs/releases/v0.2.7.md)、[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
 - 后续计划：[ROADMAP.md](ROADMAP.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)

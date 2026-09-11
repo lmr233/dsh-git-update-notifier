@@ -11,7 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -106,7 +106,7 @@ function makeCtx() {
 }
 
 apply(makeCtx())
-assert(routes.length === 10, `注册了 10 条路由（实际 ${routes.length}）`)
+assert(routes.length === 11, `注册了 11 条路由（实际 ${routes.length}）`)
 
 function makeRes() {
   let body = ''
@@ -234,6 +234,20 @@ assert(afterFailure.body.rollback !== null && afterFailure.body.rollback !== und
   '安装失败时也把回退点正式记了下来（否则失败后无从回退）')
 assert(afterFailure.body.rollback.failed === true, '回退点标记了「这次更新是失败的」')
 assert(afterFailure.body.stagedPackage === null, '源码形态没有"待安装的包"（重试合并用 FETCH_HEAD）')
+
+// 失败必须留下可检修的证据：诊断文件 + 命令 + 退出码 + 工作区状态。
+const diagnostics = await call('/dsh-git-update-notifier/diagnostics.json', 'GET')
+console.log(`  诊断文件：${diagnostics.body.file}`)
+assert(typeof diagnostics.body.file === 'string' && diagnostics.body.file !== '', '失败后写出了诊断文件')
+assert(existsSync(diagnostics.body.file), '诊断文件确实存在于磁盘上')
+const diagnosticText = readFileSync(diagnostics.body.file, 'utf8')
+assert(diagnosticText.includes('git merge --ff-only FETCH_HEAD'), '诊断里记下了失败的命令')
+assert(diagnosticText.includes('退出码'), '诊断里记下了退出码')
+assert(diagnosticText.includes('git status --short'), '诊断里带上了工作区状态（检修分叉最需要它）')
+assert(diagnostics.body.latest !== null && diagnostics.body.latest.stderr !== null,
+  '接口直接给出最近一次的完整输出')
+assert(afterFailure.body.lastUpdate?.diagnostic?.file === diagnostics.body.file,
+  '状态里带着诊断文件路径（刷新页面后仍看得到）')
 
 // 重试：复用已抓取的 FETCH_HEAD，不再走网络；分叉没解决所以仍然失败。
 const logsBefore = logs.length
