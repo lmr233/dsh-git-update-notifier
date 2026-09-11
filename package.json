@@ -25,7 +25,7 @@
   },
   "scripts": {
     "check": "node --check lib/index.js && node --check lib/client.js",
-    "test": "node test/semver.mjs && node test/proxy-parse.mjs && node test/npm-layout.mjs && node test/client-render.mjs && node test/local-check.mjs && node test/e2e-local-repo.mjs",
+    "test": "node test/schedule.mjs && node test/semver.mjs && node test/proxy-parse.mjs && node test/npm-layout.mjs && node test/client-render.mjs && node test/local-check.mjs && node test/e2e-local-repo.mjs",
     "test:live": "node test/live-upstream.mjs"
   },
   "type": "module",
