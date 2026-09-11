@@ -165,12 +165,12 @@ assert(dismissed.status === 200 && dismissed.body.ok === true, 'dismiss 返回�
 
 // ------------------------------------------------- 同一天内第二次启动
 console.log('\n=== 7. 模拟当天第二次启动：应跳过、不重复检查 ===')
-const logCountBefore = logs.filter((line) => line.includes('检查上游更新')).length
+const logCountBefore = logs.filter((line) => line.includes('检查更新：')).length
 apply(makeCtx())
 await sleep(6_500)
-const skipLogged = logs.some((line) => line.includes('跳过启动检查'))
-const logCountAfter = logs.filter((line) => line.includes('检查上游更新')).length
-assert(skipLogged, '第二次启动打印了"跳过启动检查"')
+const skipLogged = logs.some((line) => line.includes('跳过启动补检'))
+const logCountAfter = logs.filter((line) => line.includes('检查更新：')).length
+assert(skipLogged, '第二次启动打印了「跳过启动补检」')
 assert(logCountAfter === logCountBefore, '第二次启动没有再执行实际检查')
 
 // ---------------------------------------------------------------- 安全
