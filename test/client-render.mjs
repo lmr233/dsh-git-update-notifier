@@ -66,7 +66,17 @@ const window = {
 }
 
 // ------------------------------------------------------------ 执行 client bundle
-console.log('=== 1. 执行 lib/client.js，检查模块协议登记 ===')
+console.log('=== 0. 宿主半与客户端半的代码版本常量必须一致 ===')
+const indexSource = readFileSync(join(HERE, '..', 'lib', 'index.js'), 'utf8')
+const hostVersionMatch = /const CODE_VERSION = '([^']+)'/.exec(indexSource)
+const clientVersionMatch = /var CODE_VERSION = '([^']+)'/.exec(readFileSync(CLIENT_PATH, 'utf8'))
+assert(hostVersionMatch !== null, '宿主端声明了 CODE_VERSION')
+assert(clientVersionMatch !== null, '客户端声明了 CODE_VERSION')
+assert(hostVersionMatch !== null && clientVersionMatch !== null
+  && hostVersionMatch[1] === clientVersionMatch[1],
+  `两处版本一致（宿主 ${hostVersionMatch && hostVersionMatch[1]} / 客户端 ${clientVersionMatch && clientVersionMatch[1]}）`)
+
+console.log('\n=== 1. 执行 lib/client.js，检查模块协议登记 ===')
 const source = readFileSync(CLIENT_PATH, 'utf8')
 const sandbox = {
   window,
@@ -380,6 +390,48 @@ assert(unsnoozeCalls.includes('POST /dsh-git-update-notifier/snooze?days=0'), '�
 
 const notSnoozedButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
 assert(!notSnoozedButtons.includes('取消延期'), '未延期时不显示「取消延期」')
+
+console.log('\n=== 10. 两半自检与更新回退 ===')
+const staleSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, codeVersion: 'old-version' }, null, null])
+const staleText = collectText(staleSection).join(' | ')
+assert(staleText.includes('两半版本不一致'), '宿主端版本对不上时给出提示')
+assert(staleText.includes('重启 dsh web'), '提示里说明需要重启而不是刷新')
+
+const freshSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, codeVersion: '0.2.0-dev.2' }, null, null])
+assert(!collectText(freshSection).join(' | ').includes('两半版本不一致'), '版本一致时不显示自检提示')
+
+const ROLLBACK_INFO = {
+  layout: 'source', from: '0.1.5-rc.1', to: '0.1.5-rc.2',
+  at: '2026-09-11T00:00:00.000Z', head: 'abc1234', script: 'C:\\Users\\x\\.dsh\\dsh-rollback.cmd',
+}
+const withRollback = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null])
+const rollbackText = collectText(withRollback).join(' | ')
+console.log(`  回退信息：${rollbackText}`)
+assert(rollbackText.includes('上次更新'), '展示「上次更新」')
+assert(rollbackText.includes('0.1.5-rc.1 → 0.1.5-rc.2'), '展示更新前后的版本')
+assert(rollbackText.includes('dsh-rollback.cmd'), '给出不依赖 dsh 的回退脚本路径')
+
+const rollbackButtons = collectButtons(withRollback).map((node) => collectText(node).join(''))
+assert(rollbackButtons.includes('回退到更新前'), '提供「回退到更新前」按钮')
+assert(!rollbackButtons.includes('确认回退'), '首次点击前不直接暴露确认按钮（需二次确认）')
+
+const confirmStage = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, rollback: ROLLBACK_INFO }, null, null, false, true])
+const confirmButtons = collectButtons(confirmStage).map((node) => collectText(node).join(''))
+assert(confirmButtons.includes('确认回退'), '点一次后出现「确认回退」')
+assert(confirmButtons.includes('取消'), '二次确认可取消')
+
+fetchCalls.length = 0
+const yesButton = collectButtons(confirmStage).find((node) => collectText(node).join('') === '确认回退')
+yesButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const rollbackCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${rollbackCalls.join(', ')}`)
+assert(rollbackCalls.includes('POST /dsh-git-update-notifier/rollback'), '确认后发出 POST /rollback')
+
+assert(renderSlot(sectionEntry, [UPDATE_AVAILABLE, null, null]) !== null, '没有回退记录时区块照常渲染')
+const noRollbackButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
+assert(!noRollbackButtons.includes('回退到更新前'), '没有回退记录时不显示回退按钮')
 
 const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
 const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))

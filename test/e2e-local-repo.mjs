@@ -106,7 +106,7 @@ function makeCtx() {
 }
 
 apply(makeCtx())
-assert(routes.length === 5, `注册了 5 条路由（实际 ${routes.length}）`)
+assert(routes.length === 6, `注册了 6 条路由（实际 ${routes.length}）`)
 
 function makeRes() {
   let body = ''
