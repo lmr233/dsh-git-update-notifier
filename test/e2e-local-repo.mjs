@@ -106,7 +106,7 @@ function makeCtx() {
 }
 
 apply(makeCtx())
-assert(routes.length === 4, `注册了 4 条路由（实际 ${routes.length}）`)
+assert(routes.length === 5, `注册了 5 条路由（实际 ${routes.length}）`)
 
 function makeRes() {
   let body = ''
@@ -122,10 +122,12 @@ function makeRes() {
 }
 
 async function call(path, method = 'POST', remoteAddress = '127.0.0.1') {
-  const route = routes.find((candidate) => candidate.path === path)
+  // 真实 webserver 按 pathname 匹配路由、把 query 留给 handler —— 这里还原同一点。
+  const pathname = path.split('?')[0]
+  const route = routes.find((candidate) => candidate.path === pathname)
   if (route === undefined) throw new Error(`route not found: ${path}`)
   const { res, text } = makeRes()
-  await route.handler({ method, socket: { remoteAddress } }, res)
+  await route.handler({ method, url: path, socket: { remoteAddress } }, res)
   return { status: res.statusCode, body: JSON.parse(text()) }
 }
 

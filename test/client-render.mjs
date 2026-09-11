@@ -336,6 +336,34 @@ const checkCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET'
 console.log(`  ${checkCalls.join(', ')}`)
 assert(checkCalls.includes('POST /dsh-git-update-notifier/check'), '点击后发出 POST /check')
 
+// 延期：浮层卡片与设置区块都能展开时长选项（最长一个月）。
+const cardWithSnooze = renderSlot(registered[0], [UPDATE_AVAILABLE, null, null, false, false])
+const cardActionLabels = collectButtons(cardWithSnooze).map((node) => collectText(node).join(''))
+assert(cardActionLabels.includes('延期…'), '浮层卡片提供「延期…」')
+
+const snoozeExpanded = renderSlot(sectionEntry, [UPDATE_AVAILABLE, null, null, true])
+const snoozeLabels = collectButtons(snoozeExpanded).map((node) => collectText(node).join(''))
+console.log(`  延期选项：${snoozeLabels.join(' / ')}`)
+assert(snoozeLabels.includes('延期 1 天'), '展开后提供「延期 1 天」')
+assert(snoozeLabels.includes('延期 1 个月'), '展开后提供「延期 1 个月」（上限）')
+assert(snoozeLabels.includes('取消'), '展开后可取消')
+
+fetchCalls.length = 0
+const monthButton = collectButtons(snoozeExpanded).find((node) => collectText(node).join('') === '延期 1 个月')
+assert(monthButton !== undefined, '找到「延期 1 个月」按钮')
+monthButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const snoozeCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${snoozeCalls.join(', ')}`)
+assert(snoozeCalls.includes('POST /dsh-git-update-notifier/snooze?days=30'), '点「延期 1 个月」发出 POST /snooze?days=30')
+
+assert(renderCard([{ ...UPDATE_AVAILABLE, snoozed: true }, null, null, false]) === null,
+  '已延期时浮层卡片不再出现')
+const snoozedSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, snoozed: true, snoozeUntil: '2026-10-11T00:00:00.000Z' }, null, null])
+const snoozedText = collectText(snoozedSection).join(' | ')
+assert(snoozedText.includes('已延期至'), '设置页显示「已延期至」而不是隐藏状态')
+
 const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
 const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))
 assert(currentButtons.includes('手动检测更新'), '已是最新时仍可手动检测')

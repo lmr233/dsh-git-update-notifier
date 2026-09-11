@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 4, `注册了 4 条路由（实际 ${routes.length}）`)
+assert(routes.length === 5, `注册了 5 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -70,10 +70,12 @@ function makeRes() {
 }
 
 async function call(path, method = 'POST', remoteAddress = '127.0.0.1') {
-  const route = routes.find((candidate) => candidate.path === path)
+  // 真实 webserver 按 pathname 匹配路由、把 query 留给 handler —— 这里还原同一点。
+  const pathname = path.split('?')[0]
+  const route = routes.find((candidate) => candidate.path === pathname)
   if (route === undefined) throw new Error(`route not found: ${path}`)
   const { res, text } = makeRes()
-  await route.handler({ method, socket: { remoteAddress } }, res)
+  await route.handler({ method, url: path, socket: { remoteAddress } }, res)
   return { status: res.statusCode, body: text() }
 }
 
@@ -84,19 +86,38 @@ const deniedCheck = await call('/dsh-git-update-notifier/check', 'POST', '10.0.0
 assert(deniedCheck.status === 403, '非本机来源触发 check 同样被拒')
 const deniedDismiss = await call('/dsh-git-update-notifier/dismiss', 'POST', '::ffff:8.8.8.8')
 assert(deniedDismiss.status === 403, '非本机来源触发 dismiss 同样被拒')
+const deniedSnooze = await call('/dsh-git-update-notifier/snooze?days=7', 'POST', '8.8.4.4')
+assert(deniedSnooze.status === 403, '非本机来源触发 snooze 同样被拒')
 
-console.log('\n=== 3. 方法限制 ===')
+console.log('\n=== 3. 延期参数校验与上限 ===')
+const snoozeWeek = await call('/dsh-git-update-notifier/snooze?days=7')
+const weekBody = JSON.parse(snoozeWeek.body)
+assert(snoozeWeek.status === 200 && weekBody.days === 7, `days=7 被接受（HTTP ${snoozeWeek.status}，days=${weekBody.days}）`)
+assert(typeof weekBody.snoozeUntil === 'string' && weekBody.snoozeUntil !== '', '返回延期到期时间')
+const snoozeMonth = await call('/dsh-git-update-notifier/snooze?days=999')
+const monthBody = JSON.parse(snoozeMonth.body)
+assert(monthBody.days === 30, `超大天数被钳制到一个月的上限 30（实际 ${monthBody.days}）`)
+const snoozeBad = await call('/dsh-git-update-notifier/snooze?days=0')
+assert(snoozeBad.status === 400, `days=0 被拒绝（HTTP ${snoozeBad.status}）`)
+const snoozeMissing = await call('/dsh-git-update-notifier/snooze')
+assert(snoozeMissing.status === 400, `缺少 days 被拒绝（HTTP ${snoozeMissing.status}）`)
+const statusAfterSnooze = await call('/dsh-git-update-notifier/status.json', 'GET')
+const afterBody = JSON.parse(statusAfterSnooze.body)
+assert(afterBody.snoozed === true, '快照反映为「已延期」')
+assert(typeof afterBody.snoozeUntil === 'string', '快照带出延期到期时间')
+
+console.log('\n=== 4. 方法限制 ===')
 const wrongMethod = await call('/dsh-git-update-notifier/status.json', 'POST')
 assert(wrongMethod.status === 405, `status.json 拒绝 POST（HTTP ${wrongMethod.status}）`)
 
-console.log('\n=== 4. 找不到 checkout 时降级，而不是抛错 ===')
+console.log('\n=== 5. 找不到 checkout 时降级，而不是抛错 ===')
 const checked = await call('/dsh-git-update-notifier/check')
 const parsed = JSON.parse(checked.body)
 assert(checked.status === 200, `check 返回 HTTP ${checked.status}`)
 assert(parsed.status === 'error', `状态降级为 error（实际 ${parsed.status}）`)
 assert(typeof parsed.message === 'string' && parsed.message !== '', '带上了可读的失败原因')
 
-console.log('\n=== 5. GET status.json ===')
+console.log('\n=== 6. GET status.json ===')
 const status = await call('/dsh-git-update-notifier/status.json', 'GET')
 assert(status.status === 200, `HTTP ${status.status}`)
 assert(JSON.parse(status.body).day !== undefined, '返回了当天日期字段')
