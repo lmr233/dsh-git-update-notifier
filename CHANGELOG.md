@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **npx / npm 安装形态支持**：识别 dsh 的部署形态（源码 checkout / npx 缓存 /
+  npm 全局或项目安装），非源码形态改用 **npm registry** 比对版本，并支持在原地
+  执行 `npm install` 升级。版本比较正确处理 rc / alpha 预发布排序（`rc.10 > rc.9`）。
+- 新增两个环境变量：`DSH_GIT_UPDATE_NOTIFIER_CHANNEL`（`latest` / `next` / `alpha`）
+  与 `DSH_GIT_UPDATE_NOTIFIER_REGISTRY`（指向镜像源）。
+
 ### 计划中
 
 - 更新前预检：工作区是否干净、能否 `--ff-only` 快进

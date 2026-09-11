@@ -4,6 +4,12 @@
 
 > 版本号已升至 `0.2.0-dev`。以下条目按预期价值排序，实际范围以发布时的 CHANGELOG 为准。
 
+### 已完成（未发布）
+
+- [x] **npx / npm 安装形态支持**：识别部署形态（源码 checkout / npx 缓存 / npm 安装），
+  非源码形态改用 npm registry 比对版本并支持原地 `npm install` 升级；
+  新增 `DSH_GIT_UPDATE_NOTIFIER_CHANNEL` 与 `DSH_GIT_UPDATE_NOTIFIER_REGISTRY` 两个环境变量。
+
 ### 计划
 
 - [ ] **更新前预检**：把目前手工做的三项检查内置进卡片 —— 工作区是否干净、能否 `--ff-only` 快进、

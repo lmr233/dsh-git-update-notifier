@@ -161,11 +161,14 @@ function collectButtons(node, out = []) {
 
 const UPDATE_AVAILABLE = {
   status: 'update-available',
+  source: 'git',
+  layout: 'source',
+  layoutLabel: '源码 checkout',
   behind: 2,
   branch: 'master',
   localHead: 'ab30bf5dbbdb5ecffec825a47ba31b4bd40b3e9d',
   remoteHead: 'c63b0e8b170166de6ea6cd3ab9a5f27a1c900426',
-  root: 'D:\\checkout',
+  packageDir: 'D:\\checkout',
   subjects: ['c63b0e8 upstream: 新增 b.txt', 'aaaaaaa 修复问题'],
   dismissed: false,
 }
@@ -231,7 +234,7 @@ assert(renderCard([{ ...errorStatus, dismissed: true }, null, null, false]) === 
 const errorCard = renderCard([errorStatus, null, null, false])
 assert(errorCard !== null, '检查失败时也显示卡片')
 const errorText = collectText(errorCard).join(' | ')
-assert(errorText.includes('上游更新检查失败'), '失败标题')
+assert(errorText.includes('更新检查失败'), '失败标题')
 assert(errorText.includes('未能检查'), '失败徽标')
 assert(errorText.includes('Failed to connect'), '展示失败原因')
 assert(errorText.includes('网络、代理或凭证'), '展示排查提示')
@@ -256,6 +259,31 @@ const failureCard = renderCard([UPDATE_AVAILABLE, null, { ok: false, body: { mes
 const failureText = collectText(failureCard).join(' | ')
 assert(failureText.includes('更新失败'), '失败文案')
 assert(collectButtons(failureCard).map((n) => collectText(n).join('')).includes('重试'), '失败后有"重试"按钮')
+
+console.log('\n=== 8. npm 形态的卡片（npx / npm 安装）===')
+const NPM_AVAILABLE = {
+  status: 'update-available',
+  source: 'npm',
+  layout: 'npx',
+  layoutLabel: 'npx 缓存',
+  channel: 'latest',
+  localVersion: '0.1.5-rc.1',
+  target: '0.2.0',
+  packageDir: 'C:\\Users\\x\\AppData\\Local\\npm-cache\\_npx\\abc\\node_modules\\@deepseek-ai\\dsh',
+  dismissed: false,
+}
+const npmCard = renderCard([NPM_AVAILABLE, null, null, false])
+const npmText = collectText(npmCard).join(' | ')
+console.log(`  卡片文本：${npmText}`)
+assert(npmText.includes('有新版本'), 'npm 形态标题为「有新版本」')
+assert(npmText.includes('可升级到 0.2.0'), '徽标显示目标版本')
+assert(npmText.includes('发布通道'), '展示发布通道')
+assert(npmText.includes('0.1.5-rc.1 → 0.2.0'), '展示版本对比')
+assert(npmText.includes('npx 缓存'), '展示安装方式')
+assert(!npmText.includes('分支'), 'npm 形态不显示 git 分支')
+
+const npmButtons = collectButtons(npmCard).map((node) => collectText(node).join(''))
+assert(npmButtons.includes('立即更新'), 'npm 形态同样提供「立即更新」')
 
 console.log('\n全部断言通过。')
 process.exit(0)

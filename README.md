@@ -22,19 +22,53 @@
 - 查 npm 会**误报**——本地往往是 tag 之后又多走了若干提交的构建，npm 上并没有对应版本；
 - "更新"若是执行 `npm install`，会**往源码仓库里装包**，破坏 pnpm workspace 的链接结构。
 
-因此本插件只做一件事：把这个 checkout 的提交推进到 `origin/<branch>`，全程不碰 npm、不碰 `node_modules`。
+所以对**源码形态**，插件只做一件事：把这个 checkout 的提交推进到 `origin/<branch>`，全程不碰 npm、不碰 `node_modules`。
+
+而对于 `npx @deepseek-ai/dsh web` 或 npm 安装出来的形态（拿到的是预构建包、没有 `.git`），则改用 npm registry 比对版本 —— 见[支持的安装形态](#支持的安装形态)。
 
 ## 行为
 
 | 时机 | 动作 |
 |---|---|
 | 每天**首次**启动 dsh | 延迟 5 秒后检查一次上游；同一天内多次重启**不重复检查**，也不重复打扰 |
-| 发现上游有新提交 | 在 `shell.overlay`（整帧最上层，点击穿透）渲染询问卡片 |
-| 点「立即更新」 | 执行 `git pull --ff-only origin <branch>`（只允许快进，绝不生成意外 merge commit） |
+| 发现可更新 | 在 `shell.overlay`（整帧最上层，点击穿透）渲染询问卡片 |
+| 点「立即更新」 | 源码形态执行 `git pull --ff-only origin <branch>`（只允许快进，绝不生成意外 merge commit）；npx / npm 形态执行 `npm install @deepseek-ai/dsh@<目标版本>` |
 | 点「稍后」 | 当天不再询问；次日启动重新检查 |
 | 检查失败（如断网） | 弹一张**低调的失败卡片**（带原因与「重新检查」），而不是静默无反应 |
 
-卡片会显示：分支名、`本地短SHA → 远端短SHA`、落后多少个提交、上游提交摘要列表，以及 checkout 路径。
+卡片的展示内容随形态变化：源码形态显示分支、`本地短SHA → 远端短SHA`、落后提交数与上游提交摘要；npx / npm 形态显示发布通道与 `本地版本 → 目标版本`。两种形态都会显示安装方式与包位置。
+
+## 支持的安装形态
+
+插件会识别 dsh 的**实际部署形态**，据此选择检测源与更新动作：
+
+| 形态 | 判定依据 | 检测源 | 更新动作 |
+|---|---|---|---|
+| 源码 checkout | 包位于含 `.git` 的仓库内 | git 上游提交 | `git pull --ff-only` |
+| npx 缓存 | 路径含 `_npx`（`npx @deepseek-ai/dsh web` 的产物） | npm registry | 在缓存目录 `npm install` |
+| npm 安装 | 其它 `node_modules` 安装 | npm registry | `npm install`（全局加 `-g`） |
+
+为什么必须分开：源码形态比对 git 提交才是正确语义（查 npm 会误报，`npm install` 还会破坏 pnpm workspace 的链接结构）；而 npx / npm 安装拿到的是**预构建发布包**、没有 `.git`，只能也应该用 registry 版本比对。
+
+形态优先通过 `process.argv[1]`（真正在跑的那份 bin 入口）识别 —— 它对源码启动、`npx` 启动、全局安装都成立；识别不到时才回退到 profile 里的 `@deepseek-ai/dsh` 链接。
+
+npx 缓存的更新是**原地**的：缓存目录自带 `package.json`，在其中 `npm install @deepseek-ai/dsh@<版本>` 之后，下次 `npx @deepseek-ai/dsh web` 会复用同一缓存目录并跑到新版本。
+
+### 发布通道
+
+dsh 处于 developer preview，registry 上的 `latest` **常常不是最新** —— 实测有一段时间 `latest = 0.1.5-rc.1` 而 `next` 已是 `0.1.5-rc.2`。默认跟随 `latest`，需要跟进时可切换通道：
+
+```sh
+DSH_GIT_UPDATE_NOTIFIER_CHANNEL=next   # latest | next | alpha
+```
+
+### registry 镜像
+
+网络受限时用镜像源（也能让测试指向本地 mock 以离线运行）：
+
+```sh
+DSH_GIT_UPDATE_NOTIFIER_REGISTRY=https://registry.npmmirror.com
+```
 
 ## 代理
 
@@ -104,7 +138,9 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 | 变量 | 作用 |
 |---|---|
 | `DSH_GIT_UPDATE_NOTIFIER_PROXY` | 指定代理；`none`/`off`/`direct` 表示关闭探测 |
-| `DSH_GIT_UPDATE_NOTIFIER_ROOT` | 直接指定要检查的 checkout 根目录（默认自动解析，见下） |
+| `DSH_GIT_UPDATE_NOTIFIER_ROOT` | 直接指定 `@deepseek-ai/dsh` 包目录（**独占**：设置后不再自动探测其它候选） |
+| `DSH_GIT_UPDATE_NOTIFIER_CHANNEL` | npm registry 的发布通道，默认 `latest` |
+| `DSH_GIT_UPDATE_NOTIFIER_REGISTRY` | registry 基址，默认 `https://registry.npmjs.org` |
 | `DSH_HOME` | 决定状态文件位置（默认 `~/.dsh`） |
 
 **checkout 是怎么找到的**：读取 `$DSH_HOME/profiles/node_modules/@deepseek-ai/dsh`，对其 `realpath`（解析 junction / 符号链接），再逐级上溯到第一个含 `.git` 的目录。因此没有任何硬编码路径，换机器也能自动适配。找不到时才需要 `DSH_GIT_UPDATE_NOTIFIER_ROOT`。

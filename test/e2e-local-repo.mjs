@@ -50,6 +50,10 @@ git(['init', '--bare', '--initial-branch=master', UPSTREAM], ROOT)
 git(['clone', UPSTREAM, LOCAL], ROOT)
 git(['config', 'user.email', 'test@example.com'], LOCAL)
 git(['config', 'user.name', 'Test'], LOCAL)
+// 让这个模拟仓库能被识别为"dsh 本体的源码 checkout"：形态判定会读取
+// package.json 的 name 是否等于 @deepseek-ai/dsh。
+writeFileSync(join(LOCAL, 'package.json'),
+  `${JSON.stringify({ name: '@deepseek-ai/dsh', version: '0.0.1' }, null, 2)}\n`)
 writeFileSync(join(LOCAL, 'a.txt'), 'one\n')
 git(['add', '.'], LOCAL)
 git(['commit', '-m', 'first commit'], LOCAL)
@@ -132,6 +136,8 @@ assert(Array.isArray(checked.body.subjects) && checked.body.subjects.length === 
   '取到 1 条上游提交摘要')
 assert(String(checked.body.subjects[0]).includes('新增 b.txt'), `摘要内容正确：${checked.body.subjects[0]}`)
 assert(checked.body.branch === 'master', '分支识别为 master')
+assert(checked.body.source === 'git', `检测源为 git（实际 ${checked.body.source}）`)
+assert(checked.body.layout === 'source', `形态识别为源码 checkout（实际 ${checked.body.layout}）`)
 
 console.log('\n=== 4. GET /status.json：checkedToday 应为 true ===')
 const status = await call('/dsh-git-update-notifier/status.json', 'GET')
