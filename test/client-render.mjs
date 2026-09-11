@@ -328,6 +328,7 @@ assert(readyText.includes('上游版本'), '状态框展示上游版本')
 assert(readyText.includes('0.1.5-rc.2'), '上游版本取值正确')
 assert(!readyText.includes('当前提交'), '不再展示提交号一行')
 assert(readyText.includes('上次检查'), '展示上次检查时间')
+assert(readyText.includes('发现新版本'), '有更新时结果行写明结论')
 assert(readyText.includes('下次检查'), '展示下次检查时间')
 
 const sectionButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
@@ -434,6 +435,11 @@ const noRollbackButtons = collectButtons(sectionReady).map((node) => collectText
 assert(!noRollbackButtons.includes('回退到更新前'), '没有回退记录时不显示回退按钮')
 
 const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
+const currentText = collectText(sectionCurrent).join(' | ')
+console.log(`  已是最新时的状态框：${currentText}`)
+assert(currentText.includes('已是最新'), '「已是最新」也有常驻结果反馈（不再完全无提示）')
+assert(currentText.includes('0.1.5-rc.1'), '结果行带出当前版本')
+
 const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))
 assert(currentButtons.includes('手动检测更新'), '已是最新时仍可手动检测')
 assert(!currentButtons.includes('立即更新'), '已是最新时不显示「立即更新」')
