@@ -5,6 +5,7 @@
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 
 > 仓库：<https://github.com/lmr233/dsh-git-update-notifier> · MIT License
+>
 > 鉴于目前dsh更新频率高，但在目前的插件中并没有针对dsh更新推送的插件，所以制作了此插件用来检查并更新dsh，这是本人第一个作品，纯ai，如有意见可提出
 
 每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。当前版本 **`0.2.0`**。
