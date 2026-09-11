@@ -18,6 +18,9 @@
   执行 `npm install` 升级。版本比较正确处理 rc / alpha 预发布排序（`rc.10 > rc.9`）。
 - 新增两个环境变量：`DSH_GIT_UPDATE_NOTIFIER_CHANNEL`（`latest` / `next` / `alpha`）
   与 `DSH_GIT_UPDATE_NOTIFIER_REGISTRY`（指向镜像源）。
+- **设置页新增「更新」区块**（`settings.section` 席位）：常驻状态框展示当前状态、安装方式、
+  版本 / 分支、上次与下次检查时间与包位置，并提供**「手动检测更新」**按钮
+  （随时可查，不受「每天一次」限制）。
 
 ### 计划中
 

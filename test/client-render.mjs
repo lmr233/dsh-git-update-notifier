@@ -121,17 +121,29 @@ const fakeCtx = {
   },
 }
 exports.apply(fakeCtx)
-assert(registered.length === 1, `注册了 1 个条目（实际 ${registered.length}）`)
-assert(registered[0].options.name === 'shell.overlay', '注册到 shell.overlay')
+assert(registered.length === 2, `注册了 2 个条目（实际 ${registered.length}）`)
+assert(registered[0].options.name === 'shell.overlay', '第一个注册到 shell.overlay')
 assert(registered[0].options.id === 'dsh-git-update-notifier', '带稳定 id')
 
+const sectionEntry = registered.find((entry) => entry.options.name === 'settings.section')
+assert(sectionEntry !== undefined, '第二个注册到 settings.section（设置页席位）')
+assert(sectionEntry.options.id === 'dsh-git-update-notifier', '设置区块带稳定 id')
+assert(typeof sectionEntry.options.label === 'function' && sectionEntry.options.label() === '更新',
+  '设置区块带导航标签「更新」')
+assert(typeof sectionEntry.options.order === 'number', '设置区块带 order（决定导航位置）')
+
 // ------------------------------------------------------------ 渲染工具
-function renderCard(values) {
+/** 渲染某个已注册条目的组件（注入预置的 hook 值）。 */
+function renderSlot(entry, values) {
   hookValues = values
   hookCursor = 0
-  const wrapper = registered[0].Component({})
+  const wrapper = entry.Component({})
   hookCursor = 0
   return wrapper.type(wrapper.props)
+}
+
+function renderCard(values) {
+  return renderSlot(registered[0], values)
 }
 
 function collectText(node, out = []) {
@@ -284,6 +296,59 @@ assert(!npmText.includes('分支'), 'npm 形态不显示 git 分支')
 
 const npmButtons = collectButtons(npmCard).map((node) => collectText(node).join(''))
 assert(npmButtons.includes('立即更新'), 'npm 形态同样提供「立即更新」')
+
+console.log('\n=== 9. 设置页区块：更新状态框 + 手动检测 ===')
+const sectionLoading = renderSlot(sectionEntry, [null, null, null])
+const loadingText = collectText(sectionLoading).join(' | ')
+assert(loadingText.includes('dsh 更新'), '区块标题')
+assert(loadingText.includes('正在读取状态…'), '状态未就绪时有提示')
+
+const sectionReady = renderSlot(sectionEntry, [UPDATE_AVAILABLE, null, null])
+const readyText = collectText(sectionReady).join(' | ')
+console.log(`  状态框：${readyText}`)
+assert(readyText.includes('有可用更新'), '状态徽标显示「有可用更新」')
+assert(readyText.includes('安装方式'), '展示安装方式')
+assert(readyText.includes('源码 checkout'), '安装方式取值正确')
+assert(readyText.includes('落后提交'), 'git 形态展示落后提交数')
+assert(readyText.includes('上次检查'), '展示上次检查时间')
+assert(readyText.includes('下次检查'), '展示下次检查时间')
+
+const sectionButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
+console.log(`  按钮：${sectionButtons.join(' / ')}`)
+assert(sectionButtons.includes('手动检测更新'), '提供「手动检测更新」按钮')
+assert(sectionButtons.includes('立即更新'), '有可用更新时提供「立即更新」')
+
+fetchCalls.length = 0
+const checkButton = collectButtons(sectionReady)
+  .find((node) => collectText(node).join('') === '手动检测更新')
+assert(checkButton !== undefined, '找到「手动检测更新」按钮')
+checkButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const checkCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${checkCalls.join(', ')}`)
+assert(checkCalls.includes('POST /dsh-git-update-notifier/check'), '点击后发出 POST /check')
+
+const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
+const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))
+assert(currentButtons.includes('手动检测更新'), '已是最新时仍可手动检测')
+assert(!currentButtons.includes('立即更新'), '已是最新时不显示「立即更新」')
+
+const sectionError = renderSlot(sectionEntry, [
+  {
+    status: 'error',
+    layout: 'source',
+    layoutLabel: '源码 checkout',
+    message: 'git fetch 失败',
+    hint: '检查网络',
+  },
+  null,
+  null,
+])
+const sectionErrorText = collectText(sectionError).join(' | ')
+assert(sectionErrorText.includes('检查失败'), '失败态徽标')
+assert(sectionErrorText.includes('git fetch 失败'), '展示失败原因')
+assert(sectionErrorText.includes('检查网络'), '展示排查提示')
 
 console.log('\n全部断言通过。')
 process.exit(0)
