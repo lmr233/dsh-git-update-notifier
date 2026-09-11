@@ -3,6 +3,18 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased]
+
+### 计划中
+
+- 更新前预检：工作区是否干净、能否 `--ff-only` 快进
+- 更新后引导重新构建，减少"拉取了但没生效"
+- macOS 系统代理探测（`scutil --proxy`）
+- 设置界面：检查开关、代理覆盖、上游分支
+- 检查历史与诊断日志
+
+详见 [ROADMAP.md](ROADMAP.md)。
+
 ## [0.1.0] - 2026-09-10
 
 首个可用版本。

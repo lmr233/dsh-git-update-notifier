@@ -186,3 +186,9 @@ dsh-git-update-notifier/
 ```
 
 两半都是纯手写 JavaScript，**没有构建步骤**；客户端只 `require('react')`（由外壳的模块表提供）。
+
+## 版本与路线图
+
+- 当前版本：`0.2.0-dev`（v0.1.0 的完整归档见 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)）
+- 后续计划：[ROADMAP.md](ROADMAP.md)
+- 变更记录：[CHANGELOG.md](CHANGELOG.md)
