@@ -6,6 +6,8 @@
 ## [0.2.8] - 2026-09-11
 
 补上一个明显的盲区：插件一直在检测 dsh 本体，却**检测不了自己**。
+
+> **本版起已发布到 npm**：`dsh plugin --profile web add dsh-git-update-notifier` 即可安装。
 完整归档见 [docs/releases/v0.2.8.md](docs/releases/v0.2.8.md)。
 
 ### 新增
@@ -28,6 +30,9 @@
 
 - HTTP 路由由 11 条增至 12 条（新增 `POST /plugin/update`）。
 - `npm test` 增至 **10** 个脚本（新增 `test/selfcheck.mjs`）。
+- **发布到 npm**（`dsh-git-update-notifier@0.2.8`），`private` 已移除。这不只是"多一个安装渠道"：
+  插件市场与插件自身的更新检测从此都能走 registry，不再依赖 GitHub 的匿名 API
+  （60 次/小时，校园网 / 公司网 / 运营商 NAT 这类共享出口很容易被耗尽）。
 
 ## [0.2.7] - 2026-09-11
 

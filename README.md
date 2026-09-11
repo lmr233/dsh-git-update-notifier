@@ -1,6 +1,7 @@
 # dsh-git-update-notifier
 
 [![CI](https://github.com/lmr233/dsh-git-update-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/lmr233/dsh-git-update-notifier/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-git-update-notifier.svg)](https://www.npmjs.com/package/dsh-git-update-notifier)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 
