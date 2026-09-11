@@ -1,5 +1,19 @@
 # Roadmap
 
+## v0.2.5（已发布 · 2026-09-11）
+
+> 发布归档见 [docs/releases/v0.2.5.md](docs/releases/v0.2.5.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+### 已完成
+
+- [x] **更新包下载的断点续传**：更新前先把 tarball 下到本地，用 `Range` 从断点继续；
+  断点记在磁盘上，所以网络断开、主动取消、dsh 重启都能接着下。
+- [x] **更新包校验**：交给 `npm install` 之前校验 `integrity`（sha512）、`shasum`（sha1）
+  与 tarball 内的包名 / 版本；两层凭据都缺失时拒绝安装。
+- [x] **源码形态抓取可重试**：`git pull` 拆成 `git fetch`（可中断、可重试、git 复用已下载对象）
+  与本地 `merge --ff-only`，中断后能看清卡在哪一步。
+- [x] **更新过程可见**：设置页显示阶段、下载百分比与"是否在续传"，并提供中断入口。
+
 ## v0.2.0（已发布 · 2026-09-11）
 
 > 发布归档见 [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。

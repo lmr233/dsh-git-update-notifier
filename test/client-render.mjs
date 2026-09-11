@@ -488,5 +488,76 @@ assert(sectionErrorText.includes('检查失败'), '失败态徽标')
 assert(sectionErrorText.includes('git fetch 失败'), '展示失败原因')
 assert(sectionErrorText.includes('检查网络'), '展示排查提示')
 
+console.log('\n=== 12. 断点续传与包校验的展示 ===')
+// 磁盘上留着断点：应提示"再点一次会从断点继续"，而不是让人以为要从头下。
+const sectionPartial = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    pendingDownload: { version: '0.1.5-rc.2', bytes: 3 * 1024 * 1024, total: 9 * 1024 * 1024 },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const partialText = collectText(sectionPartial).join(' | ')
+console.log(`  断点提示：${partialText.includes('上次下载中断') ? '有' : '无'}`)
+assert(partialText.includes('上次下载中断'), '有断点时提示可以从断点继续')
+assert(partialText.includes('3.0 MB') && partialText.includes('9.0 MB'), '提示里带出已下载 / 总大小')
+assert(partialText.includes('0.1.5-rc.2'), '提示里带出版本号')
+
+// 更新在途：进度行 + 中断入口。
+const sectionRunning = renderSlot(sectionEntry, [
+  { ...UPDATE_AVAILABLE, pendingDownload: null },
+  'update',
+  null,
+  false,
+  ROLLBACK_CLOSED,
+  {
+    busy: true,
+    progress: {
+      phase: 'downloading',
+      message: '正在下载 0.1.5-rc.2 的更新包',
+      bytes: 4 * 1024 * 1024,
+      total: 8 * 1024 * 1024,
+      resumedFrom: 1024 * 1024,
+    },
+    pendingDownload: null,
+  },
+])
+const runningText = collectText(sectionRunning).join(' | ')
+const runningButtons = collectButtons(sectionRunning).map((node) => collectText(node).join(''))
+console.log(`  更新中的按钮：${runningButtons.join(' / ')}`)
+assert(runningText.includes('正在下载'), '显示当前阶段')
+assert(runningText.includes('50%'), '按已下载 / 总长度算出百分比')
+assert(runningText.includes('从断点续传'), '说明这次是从断点续上的')
+assert(runningButtons.includes('中断下载'), '提供「中断下载」（保留断点）')
+assert(runningButtons.includes('中断并丢弃断点'), '提供「中断并丢弃断点」')
+
+// 上次更新留下的包校验结论。
+const sectionChecks = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    pendingDownload: null,
+    lastUpdate: {
+      ok: true,
+      at: '2026-09-11T00:00:00.000Z',
+      checks: [
+        { label: '包完整性（sha512）', ok: true, detail: null },
+        { label: '包身份', ok: true, detail: '@deepseek-ai/dsh@0.1.5-rc.2' },
+      ],
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const checksText = collectText(sectionChecks).join(' | ')
+console.log(`  校验行：${checksText.includes('包完整性') ? '有' : '无'}`)
+assert(checksText.includes('上次更新的包校验'), '展示上次更新的包校验结论')
+assert(checksText.includes('包完整性（sha512）'), '逐项列出校验结果')
+assert(checksText.includes('@deepseek-ai/dsh@0.1.5-rc.2'), '包身份一项给出实际值')
+
 console.log('\n全部断言通过。')
 process.exit(0)

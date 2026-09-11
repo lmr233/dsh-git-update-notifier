@@ -2,7 +2,7 @@
  * 宿主端本地验证：不起 dsh，直接用假 ctx 驱动插件。
  *
  * 验证内容：
- * 1. apply() 能正常挂载并注册 7 条路由；
+ * 1. apply() 能正常挂载并注册 9 条路由；
  * 2. 写路由的 loopback 网关与 GET-only 的方法限制；
  * 3. 找不到 checkout 时降级为 error 状态，而不是抛错。
  *
@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 7, `注册了 7 条路由（实际 ${routes.length}）`)
+assert(routes.length === 9, `注册了 9 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -142,6 +142,23 @@ console.log('\n=== 7. GET status.json ===')
 const status = await call('/dsh-git-update-notifier/status.json', 'GET')
 assert(status.status === 200, `HTTP ${status.status}`)
 assert(JSON.parse(status.body).day !== undefined, '返回了当天日期字段')
+
+console.log('\n=== 8. 更新进度与中断下载 ===')
+const progressIdle = await call('/dsh-git-update-notifier/progress.json', 'GET')
+assert(progressIdle.status === 200, `进度路由可用（HTTP ${progressIdle.status}）`)
+const idleBody = JSON.parse(progressIdle.body)
+assert(idleBody.busy === false, '没有更新任务在跑时 busy 为 false')
+assert(idleBody.progress === null, '没有任务时进度为 null')
+assert(idleBody.pendingDownload === null || typeof idleBody.pendingDownload === 'object',
+  '带出磁盘上的下载断点字段（跨进程可见）')
+const progressPost = await call('/dsh-git-update-notifier/progress.json')
+assert(progressPost.status === 405, `进度路由拒绝 POST（HTTP ${progressPost.status}）`)
+const cancelIdle = await call('/dsh-git-update-notifier/download/cancel')
+assert(cancelIdle.status === 409, `没有下载在跑时取消返回 409（实际 ${cancelIdle.status}）`)
+const cancelForeign = await call('/dsh-git-update-notifier/download/cancel', 'POST', '8.8.4.4')
+assert(cancelForeign.status === 403, '非本机来源触发取消被拒')
+const cancelGet = await call('/dsh-git-update-notifier/download/cancel', 'GET')
+assert(cancelGet.status === 405, `取消路由拒绝 GET（HTTP ${cancelGet.status}）`)
 
 console.log('')
 if (failed > 0) {

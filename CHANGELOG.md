@@ -3,6 +3,43 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.5] - 2026-09-11
+
+把"更新"从一次性的写操作，变成**可中断、可继续、装前先验**的过程。
+完整归档见 [docs/releases/v0.2.5.md](docs/releases/v0.2.5.md)。
+
+### 新增
+
+- **更新包下载的断点续传**：npx / npm 形态更新时，插件先把目标版本的 tarball 下载到
+  `$DSH_HOME/dsh-git-update-notifier-downloads/`，之后用 `Range` 从断点继续。中断原因不限 ——
+  网络断开、主动取消、甚至 dsh 重启，下次都接着下；断点位置记在 `.part.json` 里，
+  所以是**跨进程**的。新增 `GET /progress.json`（下载进度与磁盘断点）与
+  `POST /download/cancel`（默认保留断点，`?discard=1` 才丢弃）。
+- **更新包校验**：下载完成后、交给 `npm install` **之前**做三层校验 ——
+  `dist.integrity`（sha512 内容寻址，发现传输损坏与篡改）、`dist.shasum`（sha1 兜底）、
+  以及 tarball 内 `package/package.json` 的 name / version（发现"校验和正确但装错包"）。
+  registry 两层凭据都缺失时**拒绝安装**：没有凭据的包不装。
+- **源码形态的抓取可重试**：`git pull` 拆成"先 `git fetch`（可中断、可重试，git 自身复用
+  已下载对象）再本地 `merge --ff-only`"。中断后能看清卡在哪一步，也能单独重试抓取。
+- **更新过程的进度展示**：更新进行中显示当前阶段、已下载 / 总大小与百分比，并说明
+  "这次是从断点续上的"；更新完成后展示这次的包校验结论。
+- **中断下载的入口**：「中断下载」（保留断点）与「中断并丢弃断点」。
+
+### 变更
+
+- npx / npm 形态改为安装**校验过的本地 tarball**：项目形态加 `--no-save --no-package-lock`，
+  不再改动用户的 `package.json` / lock；npx 缓存会把依赖版本写回目标版本，
+  保证下次 `npx @deepseek-ai/dsh web` 复用同一缓存目录。
+- npm 参数白名单放行 `\` 与 `:`（本地 tarball 的 Windows 路径需要），仍拒绝空格与
+  shell 元字符；路径不安全时退回按版本号安装，并在结果里如实标注"本次未做校验"。
+- HTTP 路由由 7 条增至 9 条。
+
+### 修复
+
+- 下载器：服务端忽略 `Range`、回 200 全量重下时，不再把"磁盘上的断点位置"误报成"续传了多少"。
+- 下载器：对端直接掐断连接时不一定报 error —— 改为同时依据 `complete` 判定，
+  把这种情况正确识别为"可续传的中断"。
+
 ## [0.2.0] - 2026-09-11
 
 从「只认源码 checkout」扩展到「先认清自己在哪种部署形态里」，并补齐了打扰控制与可回退性。
@@ -100,5 +137,6 @@
   模块缓存会持有已加载模块，卸载再重新挂载插件也不会重新 import。
   客户端半（`lib/client.js`）不受此限，刷新页面即可。
 
+[0.2.5]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.5
 [0.2.0]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.1.0

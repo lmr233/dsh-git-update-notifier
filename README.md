@@ -8,7 +8,7 @@
 >
 > 鉴于目前dsh更新频率高，但在目前的插件中并没有针对dsh更新推送的插件，所以制作了此插件用来检查并更新dsh，这是本人第一个作品，纯ai，如有意见可提出
 
-每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。当前版本 **`0.2.0`**。
+每天**本地时间 24 时**检查一次 dsh 本体有没有更新（那时 dsh 没开着的话，下次启动时补检）；有的话在 Web GUI 右下角弹一张卡片，**由你决定**是立即更新、延期，还是稍后再说。更新本身支持**断点续传**（中断了就从断点接着下）与**安装前校验**（sha512 / sha1 / 包内身份三层）。当前版本 **`0.2.5`**。
 
 ## 为什么用 git，而不是查 npm
 
@@ -34,7 +34,8 @@
 |---|---|
 | 每日本地 **24 时** | 到点自动检查一次；若那时 dsh 没开着，启动后**补检**当天遗漏的一次。同一自然日内只检查一次 |
 | 发现可更新 | 在 `shell.overlay`（整帧最上层，点击穿透）渲染询问卡片 |
-| 点「立即更新」 | 源码形态执行 `git pull --ff-only origin <branch>`（只允许快进，绝不生成意外 merge commit）；npx / npm 形态执行 `npm install @deepseek-ai/dsh@<目标版本>` |
+| 点「立即更新」 | **先下载到本地（可断点续传）并校验**，再安装：源码形态执行 `git fetch` + `git merge --ff-only`（只允许快进，绝不生成意外 merge commit）；npx / npm 形态下载目标版本的 tarball、校验 `integrity` / `shasum` / 包内身份后，安装这份**校验过的本地包** |
+| 更新中被打断 | 下载进度落在 `.part.json` 里 —— 网络断开、主动「中断下载」、甚至 dsh 重启，下次都**从断点继续**；「中断并丢弃断点」才从头再来 |
 | 点「延期…」 | 选择 1 天 / 3 天 / 1 周 / 2 周 / **1 个月**；到期前不再弹浮层卡片，设置页仍可查看与手动更新（**上限一个月**，超出按上限处理）；延期期间可随时「取消延期」恢复提醒 |
 | 点「稍后」 | 当天不再询问；次日 24 时（或次日启动时的补检）重新检查 |
 | 检查失败（如断网） | 弹一张**低调的失败卡片**（带原因与「重新检查」），而不是静默无反应 |
@@ -212,7 +213,9 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 |---|---|---|
 | `/dsh-git-update-notifier/status.json` | GET | 当前检查快照 |
 | `/dsh-git-update-notifier/check` | POST | 强制重新检查（无视"今天已检查过"） |
-| `/dsh-git-update-notifier/update` | POST | 执行 `git pull --ff-only`（npx / npm 形态则为 `npm install`） |
+| `/dsh-git-update-notifier/update` | POST | 下载 + 校验 + 安装（源码形态为 `git fetch` + 快进合并） |
+| `/dsh-git-update-notifier/progress.json` | GET | 更新在途进度与磁盘上的下载断点（供设置页轮询） |
+| `/dsh-git-update-notifier/download/cancel` | POST | 中断下载：默认保留断点，`?discard=1` 连断点一起丢弃 |
 | `/dsh-git-update-notifier/dismiss` | POST | 当天不再询问 |
 | `/dsh-git-update-notifier/snooze?days=N` | POST | 延期 N 天（1–30，超出按上限；`days=0` 取消延期） |
 | `/dsh-git-update-notifier/rollback` | POST | 回退：带 `?target=<提交号\|版本号>` 回退到指定目标，不带则回退到更新前记录的点 |
@@ -222,8 +225,10 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 
 ## 已知限制
 
+- **校验依赖 registry 提供凭据**。npm 官方的 `dist` 一定带 `integrity`（或至少 `shasum`）；如果某个镜像两者都不给，插件会**拒绝安装并说明原因**，而不是"假装校验通过"。
+- **断点只对同一版本、同一 URL 有效**。目标版本变了（或 tarball 地址变了）就重新下载 —— 拼不同版本的字节没有意义。
 - **更新后需要重新构建并重启才生效**。`git pull` 只推进源码；`dsh` 运行的是构建产物，拉取后需自行 `pnpm build:lib`（或对应构建命令）并重启 `dsh web`。卡片在更新成功后会明确提示这一点。
-- **只做快进合并**。本地有未提交改动或分支已分叉时，`git pull --ff-only` 会失败并在卡片上显示原因，不会尝试自动解决。
+- **只做快进合并**。本地有未提交改动或分支已分叉时，快进合并会失败并在卡片上显示原因，不会尝试自动解决。
 - **进程常驻不重启时按日定时触发**。触发点是**电脑本地时间每天 24 时**（启动时补检当天遗漏的那次），不是"每次启动"；可用设置页的「手动检测更新」或直接 POST `/check` 随时触发。
 - 需要 web profile：宿主端 `inject: ['webServer']`，在没有 web 服务的 profile 里会保持 PENDING。
 - 代理自动探测目前覆盖 Windows（注册表）与环境变量；Linux 走环境变量，macOS 的系统代理（`scutil --proxy`）尚未覆盖。
@@ -234,7 +239,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 dsh plugin --profile web remove dsh-git-update-notifier
 ```
 
-再删掉 `$DSH_HOME/dsh-git-update-notifier.json`。
+再删掉 `$DSH_HOME/dsh-git-update-notifier.json` 与下载缓存目录 `$DSH_HOME/dsh-git-update-notifier-downloads/`（里面是已校验过的更新包与可能残留的 `.part` 断点）。
 
 ## 开发与验证
 
@@ -245,10 +250,16 @@ npm run test:live           # 真实上游：经系统代理抓取真实 GitHub�
 
 # 也可以单独跑某一个：
 node test/proxy-parse.mjs    # 代理取值归一化（纯函数，不联网）
+node test/download.mjs       # 下载器：断点续传的几条现实路径（本地 http server 扮演 tarball 端点）
+node test/verify.mjs         # 包校验：篡改、身份不符、缺凭据（手写最小 UStar tar 构造用例）
 node test/client-render.mjs  # 客户端：模块协议登记、导出形态、卡片各状态与按钮请求
 node test/local-check.mjs    # 宿主端：路由注册与 loopback 网关
 node test/e2e-local-repo.mjs # 端到端：本地 bare 仓库验证检测→更新→失败时字段清空
 ```
+
+`test/download.mjs` 同样不依赖外网：本地 http server 可以按指令"发一半就掐断"、"忽略 `Range`"、"谎报区间"、"慢慢发以便中途取消"，于是续传的每条分支都被真实走了一遍。
+
+`test/verify.mjs` 手写最小 UStar tar + gzip 造出合法的 npm tarball，再精确地篡改一个字节、改掉版本号、抽掉校验凭据，验证每种坏包都会被拦下。
 
 `test/e2e-local-repo.mjs` 不依赖外网：它自己造一个 bare 仓库与两个 clone，让 local 落后 upstream 一个提交，然后用假 ctx 驱动真实的 `apply()`，断言 `behind=1`、`/update` 真的推进了 HEAD、当天第二次启动只跳过不重复检查，以及抓取失败时成功态字段（`behind`/`subjects`/`remoteHead`）会被清空。
 
@@ -259,7 +270,11 @@ dsh-git-update-notifier/
 ├── package.json        # dsh.bundle.patch + dsh.client 声明
 ├── cordis.patch.yml    # 插入本插件行的组合层
 ├── lib/
-│   ├── index.js        # 宿主端：代理探测、git 检测、状态持久化、更新执行、HTTP 路由
+│   ├── index.js        # 宿主端：代理探测、形态识别、检测、状态持久化、更新/回退、HTTP 路由
+│   ├── download.js     # 带 Range 断点续传的下载器（跨进程断点、可取消）
+│   ├── verify.js       # 更新包校验（sha512 / sha1 / 包内身份）与最小 tar 读取
+│   ├── registry.js     # registry 查询（dist-tags、单版本 manifest）
+│   ├── semver.js       # 预发布排序的最小实现
 │   └── client.js       # 客户端：手写 bundle，shell.overlay 询问卡片
 └── test/               # 可独立运行的验证脚本
 ```
@@ -268,6 +283,6 @@ dsh-git-update-notifier/
 
 ## 版本与路线图
 
-- 当前版本：`0.2.0`（发布归档：[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
+- 当前版本：`0.2.5`（发布归档：[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
 - 后续计划：[ROADMAP.md](ROADMAP.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)
