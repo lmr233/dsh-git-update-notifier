@@ -178,6 +178,8 @@ const UPDATE_AVAILABLE = {
   layoutLabel: '源码 checkout',
   behind: 2,
   branch: 'master',
+  localVersion: '0.1.5-rc.1',
+  remoteVersion: '0.1.5-rc.2',
   localHead: 'ab30bf5dbbdb5ecffec825a47ba31b4bd40b3e9d',
   remoteHead: 'c63b0e8b170166de6ea6cd3ab9a5f27a1c900426',
   packageDir: 'D:\\checkout',
@@ -196,9 +198,9 @@ const card = renderCard([UPDATE_AVAILABLE, null, null, false])
 assert(card !== null, 'update-available 时渲染卡片')
 const text = collectText(card).join(' | ')
 console.log(`  卡片文本：${text}`)
-assert(text.includes('有新的上游提交'), '标题正确')
+assert(text.includes('有新的上游版本'), '标题正确')
 assert(text.includes('落后 2 个提交'), '展示落后提交数')
-assert(text.includes('ab30bf5db → c63b0e8b1'), '展示本地→远端短 SHA')
+assert(text.includes('0.1.5-rc.1 → 0.1.5-rc.2'), '源码形态展示「版本 → 版本」而非提交号')
 assert(text.includes('新增 b.txt'), '展示上游提交摘要')
 
 const buttons = collectButtons(card)
@@ -310,6 +312,11 @@ assert(readyText.includes('有可用更新'), '状态徽标显示「有可用更
 assert(readyText.includes('安装方式'), '展示安装方式')
 assert(readyText.includes('源码 checkout'), '安装方式取值正确')
 assert(readyText.includes('落后提交'), 'git 形态展示落后提交数')
+assert(readyText.includes('当前版本'), '状态框展示当前版本')
+assert(readyText.includes('0.1.5-rc.1'), '当前版本取值正确')
+assert(readyText.includes('上游版本'), '状态框展示上游版本')
+assert(readyText.includes('0.1.5-rc.2'), '上游版本取值正确')
+assert(!readyText.includes('当前提交'), '不再展示提交号一行')
 assert(readyText.includes('上次检查'), '展示上次检查时间')
 assert(readyText.includes('下次检查'), '展示下次检查时间')
 

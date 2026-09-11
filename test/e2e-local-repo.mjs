@@ -63,6 +63,9 @@ git(['clone', UPSTREAM, OTHER], ROOT)
 git(['config', 'user.email', 'test@example.com'], OTHER)
 git(['config', 'user.name', 'Test'], OTHER)
 writeFileSync(join(OTHER, 'b.txt'), 'two\n')
+// 顺带把上游版本号抬高一档，用来验证「版本号方式」的展示。
+writeFileSync(join(OTHER, 'package.json'),
+  `${JSON.stringify({ name: '@deepseek-ai/dsh', version: '0.0.2' }, null, 2)}\n`)
 git(['add', '.'], OTHER)
 git(['commit', '-m', 'upstream: 新增 b.txt'], OTHER)
 git(['push', 'origin', 'master'], OTHER)
@@ -138,6 +141,8 @@ assert(String(checked.body.subjects[0]).includes('新增 b.txt'), `摘要内容�
 assert(checked.body.branch === 'master', '分支识别为 master')
 assert(checked.body.source === 'git', `检测源为 git（实际 ${checked.body.source}）`)
 assert(checked.body.layout === 'source', `形态识别为源码 checkout（实际 ${checked.body.layout}）`)
+assert(checked.body.localVersion === '0.0.1', `本地版本为 0.0.1（实际 ${checked.body.localVersion}）`)
+assert(checked.body.remoteVersion === '0.0.2', `上游版本为 0.0.2（实际 ${checked.body.remoteVersion}）`)
 
 console.log('\n=== 4. GET /status.json：checkedToday 应为 true ===')
 const status = await call('/dsh-git-update-notifier/status.json', 'GET')
