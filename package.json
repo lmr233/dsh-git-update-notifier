@@ -1,8 +1,8 @@
 {
   "name": "dsh-git-update-notifier",
-  "version": "0.2.0-dev",
+  "version": "0.2.0",
   "private": true,
-  "description": "每天首次启动 dsh 时，用 git 检测 deepseek-harness 上游是否有新提交，并在 Web GUI 中交由用户决定是否更新。",
+  "description": "每日检查 dsh 本体是否有更新（源码 checkout 走 git，npx / npm 安装走 registry），并在 Web GUI 中交由用户决定更新、延期或回退。",
   "keywords": [
     "dsh",
     "dsh-plugin",

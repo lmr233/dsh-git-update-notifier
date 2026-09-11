@@ -1,10 +1,10 @@
 # Roadmap
 
-## v0.2.0（开发中）
+## v0.2.0（已发布 · 2026-09-11）
 
-> 版本号已升至 `0.2.0-dev`。以下条目按预期价值排序，实际范围以发布时的 CHANGELOG 为准。
+> 发布归档见 [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)，完整变更见 [CHANGELOG.md](CHANGELOG.md)。
 
-### 已完成（未发布）
+### 已完成
 
 - [x] **npx / npm 安装形态支持**：识别部署形态（源码 checkout / npx 缓存 / npm 安装），
   非源码形态改用 npm registry 比对版本并支持原地 `npm install` 升级；
