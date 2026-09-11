@@ -398,7 +398,8 @@ const staleText = collectText(staleSection).join(' | ')
 assert(staleText.includes('两半版本不一致'), '宿主端版本对不上时给出提示')
 assert(staleText.includes('重启 dsh web'), '提示里说明需要重启而不是刷新')
 
-const freshSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, codeVersion: '0.2.0-dev.2' }, null, null])
+// 用第 0 节从源码读到的版本，而不是硬编码 —— 否则每次递增都要改测试。
+const freshSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, codeVersion: clientVersionMatch[1] }, null, null])
 assert(!collectText(freshSection).join(' | ').includes('两半版本不一致'), '版本一致时不显示自检提示')
 
 const ROLLBACK_INFO = {
@@ -443,6 +444,7 @@ assert(currentText.includes('0.1.5-rc.1'), '结果行带出当前版本')
 const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))
 assert(currentButtons.includes('手动检测更新'), '已是最新时仍可手动检测')
 assert(!currentButtons.includes('立即更新'), '已是最新时不显示「立即更新」')
+assert(currentButtons.includes('延期…'), '「延期…」常驻：已是最新时同样可用')
 
 const sectionError = renderSlot(sectionEntry, [
   {
