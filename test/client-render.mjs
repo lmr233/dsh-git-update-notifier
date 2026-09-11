@@ -364,6 +364,23 @@ const snoozedSection = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, snoozed:
 const snoozedText = collectText(snoozedSection).join(' | ')
 assert(snoozedText.includes('已延期至'), '设置页显示「已延期至」而不是隐藏状态')
 
+const snoozedButtons = collectButtons(snoozedSection).map((node) => collectText(node).join(''))
+console.log(`  延期中的按钮：${snoozedButtons.join(' / ')}`)
+assert(snoozedButtons.includes('取消延期'), '延期期间提供「取消延期」')
+
+fetchCalls.length = 0
+const unsnoozeButton = collectButtons(snoozedSection).find((node) => collectText(node).join('') === '取消延期')
+assert(unsnoozeButton !== undefined, '找到「取消延期」按钮')
+unsnoozeButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const unsnoozeCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${unsnoozeCalls.join(', ')}`)
+assert(unsnoozeCalls.includes('POST /dsh-git-update-notifier/snooze?days=0'), '点「取消延期」发出 POST /snooze?days=0')
+
+const notSnoozedButtons = collectButtons(sectionReady).map((node) => collectText(node).join(''))
+assert(!notSnoozedButtons.includes('取消延期'), '未延期时不显示「取消延期」')
+
 const sectionCurrent = renderSlot(sectionEntry, [{ ...UPDATE_AVAILABLE, status: 'up-to-date' }, null, null])
 const currentButtons = collectButtons(sectionCurrent).map((node) => collectText(node).join(''))
 assert(currentButtons.includes('手动检测更新'), '已是最新时仍可手动检测')

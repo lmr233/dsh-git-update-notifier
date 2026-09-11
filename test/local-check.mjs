@@ -97,14 +97,22 @@ assert(typeof weekBody.snoozeUntil === 'string' && weekBody.snoozeUntil !== '', 
 const snoozeMonth = await call('/dsh-git-update-notifier/snooze?days=999')
 const monthBody = JSON.parse(snoozeMonth.body)
 assert(monthBody.days === 30, `超大天数被钳制到一个月的上限 30（实际 ${monthBody.days}）`)
-const snoozeBad = await call('/dsh-git-update-notifier/snooze?days=0')
-assert(snoozeBad.status === 400, `days=0 被拒绝（HTTP ${snoozeBad.status}）`)
-const snoozeMissing = await call('/dsh-git-update-notifier/snooze')
-assert(snoozeMissing.status === 400, `缺少 days 被拒绝（HTTP ${snoozeMissing.status}）`)
 const statusAfterSnooze = await call('/dsh-git-update-notifier/status.json', 'GET')
 const afterBody = JSON.parse(statusAfterSnooze.body)
 assert(afterBody.snoozed === true, '快照反映为「已延期」')
 assert(typeof afterBody.snoozeUntil === 'string', '快照带出延期到期时间')
+
+const snoozeCancel = await call('/dsh-git-update-notifier/snooze?days=0')
+const cancelBody = JSON.parse(snoozeCancel.body)
+assert(snoozeCancel.status === 200 && cancelBody.cancelled === true,
+  `days=0 表示取消延期（HTTP ${snoozeCancel.status}）`)
+const canceledStatus = await call('/dsh-git-update-notifier/status.json', 'GET')
+assert(JSON.parse(canceledStatus.body).snoozed === false, '取消后快照的 snoozed 变为 false')
+
+const snoozeNegative = await call('/dsh-git-update-notifier/snooze?days=-1')
+assert(snoozeNegative.status === 400, `days=-1 仍被拒绝（HTTP ${snoozeNegative.status}）`)
+const snoozeMissing = await call('/dsh-git-update-notifier/snooze')
+assert(snoozeMissing.status === 400, `缺少 days 被拒绝（HTTP ${snoozeMissing.status}）`)
 
 console.log('\n=== 4. 方法限制 ===')
 const wrongMethod = await call('/dsh-git-update-notifier/status.json', 'POST')
