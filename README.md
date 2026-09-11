@@ -155,7 +155,17 @@ Windows 上 **git 不读取系统代理设置**，所以开了代理的机器往
 
 本包是一个**组合包**（bundle）：`package.json` 里声明了 `dsh.bundle.patch`，profile 列出它时会应用 `cordis.patch.yml` 这一层。
 
-### 从 GitHub 安装（推荐）
+### 从 npm 安装（推荐）
+
+```sh
+dsh plugin --profile web add dsh-git-update-notifier
+```
+
+从 registry 安装不只是省事：插件的**自身更新检测**会因为能查到 npm 上的版本而更可靠 ——
+GitHub 的匿名 API 每小时只有 60 次额度，共享出口 IP（校园网 / 公司网 / 运营商 NAT）很容易被耗尽，
+届时「插件市场」和别处的更新检测都会失败。
+
+### 从 GitHub 安装
 
 ```sh
 dsh plugin --profile web add github:lmr233/dsh-git-update-notifier
