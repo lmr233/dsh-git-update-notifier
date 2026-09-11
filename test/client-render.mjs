@@ -559,5 +559,78 @@ assert(checksText.includes('上次更新的包校验'), '展示上次更新的�
 assert(checksText.includes('包完整性（sha512）'), '逐项列出校验结果')
 assert(checksText.includes('@deepseek-ai/dsh@0.1.5-rc.2'), '包身份一项给出实际值')
 
+console.log('\n=== 13. 安装失败后的重试与回退入口 ===')
+const sectionInstallFailed = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    pendingDownload: null,
+    rollback: {
+      layout: 'npx',
+      from: '0.1.5-rc.1',
+      to: '0.1.5-rc.2',
+      at: '2026-09-11T00:00:00.000Z',
+      failed: true,
+      script: null,
+    },
+    lastUpdate: {
+      ok: false,
+      at: '2026-09-11T00:00:00.000Z',
+      message: 'npm install 失败：EACCES',
+      phase: 'install',
+      canRetry: true,
+      canRollback: true,
+      attempt: 2,
+      checks: [{ label: '包完整性（sha512）', ok: true, detail: null }],
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const failedText = collectText(sectionInstallFailed).join(' | ')
+const failedButtons = collectButtons(sectionInstallFailed).map((node) => collectText(node).join(''))
+console.log(`  安装失败态的按钮：${failedButtons.join(' / ')}`)
+assert(failedText.includes('安装阶段失败'), '说明这是安装阶段失败（而不是下载失败）')
+assert(failedText.includes('第 2 次'), '标出这是第几次尝试')
+assert(failedText.includes('npm install 失败'), '带上失败原因')
+assert(failedText.includes('可以只「重试安装」'), '说明包已就绪、可以只重试安装')
+assert(failedButtons.includes('重试安装'), '提供「重试安装」')
+assert(failedButtons.includes('回退到更新前'), '提供「回退到更新前」')
+
+fetchCalls.length = 0
+const retryButton = collectButtons(sectionInstallFailed)
+  .find((node) => collectText(node).join('') === '重试安装')
+retryButton.props.onClick()
+await new Promise((done) => setImmediate(done))
+await new Promise((done) => setImmediate(done))
+const retryCalls = fetchCalls.map((call) => `${String(call.init?.method ?? 'GET')} ${call.url}`)
+console.log(`  ${retryCalls.join(', ')}`)
+assert(retryCalls.includes('POST /dsh-git-update-notifier/update/retry'), '「重试安装」打到 /update/retry')
+
+// 本地包已失效时不能继续承诺"直接重试"。
+const sectionNeedsFresh = renderSlot(sectionEntry, [
+  {
+    ...UPDATE_AVAILABLE,
+    pendingDownload: null,
+    lastUpdate: {
+      ok: false,
+      at: '2026-09-11T00:00:00.000Z',
+      message: '本地安装包已不可信：校验失败',
+      phase: 'install',
+      canRetry: true,
+      canRollback: true,
+      needsFreshDownload: true,
+      attempt: 1,
+    },
+  },
+  null,
+  null,
+  false,
+  ROLLBACK_CLOSED,
+])
+const freshText = collectText(sectionNeedsFresh).join(' | ')
+assert(freshText.includes('本地安装包已失效'), '包失效时如实说明需要重新下载')
+
 console.log('\n全部断言通过。')
 process.exit(0)

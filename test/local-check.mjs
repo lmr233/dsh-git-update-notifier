@@ -2,7 +2,7 @@
  * 宿主端本地验证：不起 dsh，直接用假 ctx 驱动插件。
  *
  * 验证内容：
- * 1. apply() 能正常挂载并注册 9 条路由；
+ * 1. apply() 能正常挂载并注册 10 条路由；
  * 2. 写路由的 loopback 网关与 GET-only 的方法限制；
  * 3. 找不到 checkout 时降级为 error 状态，而不是抛错。
  *
@@ -52,7 +52,7 @@ const ctx = {
 apply(ctx)
 
 console.log('=== 1. 路由注册 ===')
-assert(routes.length === 9, `注册了 9 条路由（实际 ${routes.length}）`)
+assert(routes.length === 10, `注册了 10 条路由（实际 ${routes.length}）`)
 for (const route of routes) console.log(`     ${route.kind.padEnd(6)} ${route.path}`)
 
 function makeRes() {
@@ -159,6 +159,19 @@ const cancelForeign = await call('/dsh-git-update-notifier/download/cancel', 'PO
 assert(cancelForeign.status === 403, '非本机来源触发取消被拒')
 const cancelGet = await call('/dsh-git-update-notifier/download/cancel', 'GET')
 assert(cancelGet.status === 405, `取消路由拒绝 GET（HTTP ${cancelGet.status}）`)
+
+console.log('\n=== 9. 安装失败后的重试入口 ===')
+const retryIdle = await call('/dsh-git-update-notifier/update/retry')
+assert(retryIdle.status === 409, `没有安装失败记录时重试返回 409（实际 ${retryIdle.status}）`)
+const retryForeign = await call('/dsh-git-update-notifier/update/retry', 'POST', '8.8.4.4')
+assert(retryForeign.status === 403, '非本机来源触发重试被拒')
+const retryGet = await call('/dsh-git-update-notifier/update/retry', 'GET')
+assert(retryGet.status === 405, `重试路由拒绝 GET（HTTP ${retryGet.status}）`)
+
+const statusBody = JSON.parse((await call('/dsh-git-update-notifier/status.json', 'GET')).body)
+assert(statusBody.stagedPackage === null, '没有待安装的包时 stagedPackage 为 null')
+assert(statusBody.lastUpdate === null || typeof statusBody.lastUpdate === 'object',
+  '快照带出「上一次更新结论」字段')
 
 console.log('')
 if (failed > 0) {

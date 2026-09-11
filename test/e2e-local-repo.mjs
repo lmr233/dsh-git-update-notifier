@@ -106,7 +106,7 @@ function makeCtx() {
 }
 
 apply(makeCtx())
-assert(routes.length === 9, `注册了 9 条路由（实际 ${routes.length}）`)
+assert(routes.length === 10, `注册了 10 条路由（实际 ${routes.length}）`)
 
 function makeRes() {
   let body = ''
@@ -205,6 +205,54 @@ console.log(`  ${targetList.map((item) => `${item.label} [${item.id.slice(0, 9)}
 assert(targetList.length === 1, `更新后恰好剩更新前那个提交可回退（实际 ${targetList.length}）`)
 assert(targetList[0].id === firstSha, 'target 仍是提交号（回退按提交号执行）')
 assert(targetList[0].label === '0.0.1', `展示的是该提交自己的版本号而不是提交号（实际 ${targetList[0].label}）`)
+
+console.log('\n=== 11. 安装阶段失败：可重试、可回退 ===')
+// 造一个"本地分叉"：本地有自己的提交，上游又往前走 —— 快进合并必然失败。
+// 这正是"安装/合并失败"最典型的真实成因。
+writeFileSync(join(LOCAL, 'local-only.txt'), 'local\n')
+git(['add', '.'], LOCAL)
+git(['commit', '-m', 'local: 本地独有的改动'], LOCAL)
+const beforeAttempt = git(['rev-parse', 'HEAD'], LOCAL)
+
+writeFileSync(join(OTHER, 'c.txt'), 'three\n')
+git(['add', '.'], OTHER)
+git(['commit', '-m', 'upstream: 新增 c.txt'], OTHER)
+git(['push', 'origin', 'master'], OTHER)
+
+const failedUpdate = await call('/dsh-git-update-notifier/update')
+console.log(`  HTTP ${failedUpdate.status}  phase=${failedUpdate.body.phase}  ok=${failedUpdate.body.ok}`)
+assert(failedUpdate.body.ok === false, '分叉时更新失败')
+assert(failedUpdate.body.phase === 'merge', `失败阶段标记为 merge（实际 ${failedUpdate.body.phase}）`)
+assert(git(['rev-parse', 'HEAD'], LOCAL) === beforeAttempt, '快进合并失败没有动本地 HEAD')
+
+const afterFailure = await call('/dsh-git-update-notifier/status.json', 'GET')
+console.log(`  canRetry=${afterFailure.body.lastUpdate?.canRetry}  canRollback=${afterFailure.body.lastUpdate?.canRollback}`)
+assert(afterFailure.body.lastUpdate?.canRetry === true, '失败后状态标记「可重试」')
+assert(afterFailure.body.lastUpdate?.canRollback === true, '失败后状态标记「可回退」')
+assert(afterFailure.body.lastUpdate?.attempt === 1, '记下了这是第 1 次尝试')
+assert(afterFailure.body.rollback !== null && afterFailure.body.rollback !== undefined,
+  '安装失败时也把回退点正式记了下来（否则失败后无从回退）')
+assert(afterFailure.body.rollback.failed === true, '回退点标记了「这次更新是失败的」')
+assert(afterFailure.body.stagedPackage === null, '源码形态没有"待安装的包"（重试合并用 FETCH_HEAD）')
+
+// 重试：复用已抓取的 FETCH_HEAD，不再走网络；分叉没解决所以仍然失败。
+const logsBefore = logs.length
+const retried = await call('/dsh-git-update-notifier/update/retry')
+console.log(`  HTTP ${retried.status}  phase=${retried.body.phase}`)
+assert(retried.body.ok === false, '分叉未解决时重试仍然失败')
+assert(retried.body.phase === 'merge', '重试走的仍是合并这一步')
+const retryLogs = logs.slice(logsBefore).join('\n')
+assert(retryLogs.includes('复用上次抓取到本地的 FETCH_HEAD'), '重试复用了已抓取的结果（不重新抓取）')
+
+const afterRetry = await call('/dsh-git-update-notifier/status.json', 'GET')
+assert(afterRetry.body.lastUpdate?.attempt === 2, `重试后尝试次数累加到 2（实际 ${afterRetry.body.lastUpdate?.attempt}）`)
+assert(afterRetry.body.lastUpdate?.canRetry === true, '重试失败后依然可以继续重试')
+
+// 回退：失败后必须有一条走得通的退路。
+const rolledBack = await call('/dsh-git-update-notifier/rollback')
+console.log(`  HTTP ${rolledBack.status}  ${rolledBack.body.message}`)
+assert(rolledBack.body.ok === true, '安装失败后回退可用')
+assert(git(['rev-parse', 'HEAD'], LOCAL) === beforeAttempt, '回退后 HEAD 就是失败前记录的那个提交')
 
 console.log('\n全部断言通过。\n')
 console.log('--- 插件日志 ---')

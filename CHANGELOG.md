@@ -3,6 +3,29 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.6] - 2026-09-11
+
+补上更新流程最后一段的"出事了怎么办"：**安装失败可以只重试安装，也可以回退到更新前**。
+完整归档见 [docs/releases/v0.2.6.md](docs/releases/v0.2.6.md)。
+
+### 新增
+
+- **安装失败后的重试**：把"准备安装包"（下载 + 校验）与"安装"拆成两步，安装阶段失败时
+  保留已校验的包与失败阶段标记。新增 `POST /update/retry` —— **只重做安装**，
+  不重新下载、不重新解析 registry；源码形态则复用已抓取的 `FETCH_HEAD` 重做快进合并。
+- **安装失败后的回退**：失败时把"更新前"那一刻的回退点正式记入状态（此前只在更新**成功**
+  后才记录），因此失败后 `POST /rollback` 立刻可用 —— 工作区被改到一半时有一条走得通的退路。
+- **失败阶段可见**：`lastUpdate` 增加 `phase` / `canRetry` / `canRollback` / `attempt` /
+  `needsFreshDownload`；设置页在安装失败时给出「重试安装」与「回退到更新前」两个按钮，
+  并写明这是第几次尝试。
+- **重试前重新校验**：每次安装前重算一次哈希，确保"装的就是当初校验通过的那份字节"；
+  若本地包已被改动，则丢弃它并要求重新下载（此时不再承诺"直接重试"）。
+
+### 变更
+
+- HTTP 路由由 9 条增至 10 条（新增 `POST /update/retry`）。
+- 源码形态的快进合并失败，提示改为"重试或回退"，而不是笼统的"请手动处理后重试"。
+
 ## [0.2.5] - 2026-09-11
 
 把"更新"从一次性的写操作，变成**可中断、可继续、装前先验**的过程。
@@ -137,6 +160,7 @@
   模块缓存会持有已加载模块，卸载再重新挂载插件也不会重新 import。
   客户端半（`lib/client.js`）不受此限，刷新页面即可。
 
+[0.2.6]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.6
 [0.2.5]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.5
 [0.2.0]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.1.0
