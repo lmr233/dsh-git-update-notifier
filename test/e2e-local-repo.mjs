@@ -196,6 +196,16 @@ assert(Array.isArray(failedAgain.body.subjects) && failedAgain.body.subjects.len
 assert(failedAgain.body.remoteHead === null, 'remoteHead 被清空')
 git(['remote', 'set-url', 'origin', UPSTREAM], LOCAL)
 
+console.log('\n=== 10. GET /rollback/targets.json：回退目标用版本号展示 ===')
+const firstSha = git(['rev-parse', 'HEAD~1'], LOCAL)
+const targets = await call('/dsh-git-update-notifier/rollback/targets.json', 'GET')
+assert(targets.status === 200, `可选目标路由可用（HTTP ${targets.status}）`)
+const targetList = targets.body.targets
+console.log(`  ${targetList.map((item) => `${item.label} [${item.id.slice(0, 9)}]`).join(', ') || '（无）'}`)
+assert(targetList.length === 1, `更新后恰好剩更新前那个提交可回退（实际 ${targetList.length}）`)
+assert(targetList[0].id === firstSha, 'target 仍是提交号（回退按提交号执行）')
+assert(targetList[0].label === '0.0.1', `展示的是该提交自己的版本号而不是提交号（实际 ${targetList[0].label}）`)
+
 console.log('\n全部断言通过。\n')
 console.log('--- 插件日志 ---')
 for (const line of logs) console.log(`  ${line}`)

@@ -71,7 +71,8 @@
    （`dsh-rollback.cmd` / `dsh-rollback.sh`）—— dsh 若起不来，插件自己也跑不起来，
    所以回退入口必须落在 dsh 之外；
 3. dsh 能正常启动时，设置页显示「上次更新：X → Y」，并提供**常驻**的「**回退…**」入口：
-   点开后自选目标 —— 源码形态列出上游最近的若干提交，npx / npm 形态列出已发布的历史版本 ——
+   点开后自选目标 —— 源码形态列出上游最近的若干**版本号**（逐个取各提交自己的 `package.json`），
+   npx / npm 形态列出已发布的历史版本 ——
    选中后按钮写明「确认回退到 X」再执行；不选目标时回退到上面记录的更新前那一刻。
    同时给出上面那个脚本的路径。
 
@@ -213,7 +214,7 @@ dsh --profile web --dump-config   # 应能看到 dsh-git-update-notifier 这一�
 | `/dsh-git-update-notifier/dismiss` | POST | 当天不再询问 |
 | `/dsh-git-update-notifier/snooze?days=N` | POST | 延期 N 天（1–30，超出按上限；`days=0` 取消延期） |
 | `/dsh-git-update-notifier/rollback` | POST | 回退：带 `?target=<提交号\|版本号>` 回退到指定目标，不带则回退到更新前记录的点 |
-| `/dsh-git-update-notifier/rollback/targets.json` | GET | 列出可选回退目标（源码形态取上游最近提交，npx / npm 形态取历史版本） |
+| `/dsh-git-update-notifier/rollback/targets.json` | GET | 列出可选回退目标（源码形态逐个读取提交自己的版本号展示，npx / npm 形态取历史版本） |
 
 上面所有写路由都要求来源是 loopback（`127.0.0.1` / `::1`），局域网里的其它客户端拿不到触发 git 操作的能力。
 
