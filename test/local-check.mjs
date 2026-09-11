@@ -13,7 +13,7 @@
  * 用法：node test/local-check.mjs
  */
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -22,7 +22,7 @@ process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dsh-gun-local-'))
 process.env.DSH_GIT_UPDATE_NOTIFIER_PROXY = 'none'
 process.env.DSH_GIT_UPDATE_NOTIFIER_ROOT = join(process.env.DSH_HOME, 'no-such-checkout')
 
-const { apply } = await import('../lib/index.js')
+const { apply, packageManagerFor } = await import('../lib/index.js')
 
 let failed = 0
 function assert(condition, message) {
@@ -194,6 +194,24 @@ assert(pluginGet.status === 405, `插件更新路由拒绝 GET（HTTP ${pluginGe
 
 const selfField = JSON.parse((await call('/dsh-git-update-notifier/status.json', 'GET')).body)
 assert('selfUpdate' in selfField, '快照带出插件自身的更新状态字段')
+
+console.log('\n=== 12. 更新插件自身时该用哪个包管理器 ===')
+{
+  const pnpmDir = mkdtempSync(join(tmpdir(), 'dsh-pnpm-'))
+  writeFileSync(join(pnpmDir, 'pnpm-workspace.yaml'), 'packages:\n  - .\n')
+  assert(packageManagerFor(pnpmDir) === 'pnpm', '有 pnpm-workspace.yaml 时判定为 pnpm')
+
+  const lockDir = mkdtempSync(join(tmpdir(), 'dsh-pnpm-lock-'))
+  writeFileSync(join(lockDir, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+  assert(packageManagerFor(lockDir) === 'pnpm', '只有 pnpm-lock.yaml 时也判定为 pnpm')
+
+  const plainDir = mkdtempSync(join(tmpdir(), 'dsh-plain-'))
+  writeFileSync(join(plainDir, 'package.json'), '{}\n')
+  assert(packageManagerFor(plainDir) === 'npm', '没有 pnpm 元数据时按 npm 处理（npx 缓存属于这一档）')
+
+  assert(packageManagerFor('') === 'npm', '空路径按 npm 处理')
+  assert(packageManagerFor(undefined) === 'npm', '未提供路径按 npm 处理')
+}
 
 console.log('')
 if (failed > 0) {

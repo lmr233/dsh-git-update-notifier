@@ -95,9 +95,11 @@
 | 自身形态 | 判定依据 | 远端来源 | 「更新插件」的动作 |
 |---|---|---|---|
 | git 检出 | 自己所在目录（或上溯）有 `.git` | git 上游 | `git fetch` + `merge --ff-only` |
-| npm 依赖 | 宿主清单里声明为本包（semver / `^` / `~`） | npm registry | `npm install <包名>@<目标版本>` |
-| github 依赖 | 宿主清单里声明为 `github:` / git URL | GitHub | `npm install github:<仓库>#v<目标版本>` |
+| npm 依赖 | 宿主清单里声明为本包（semver / `^` / `~`） | npm registry | `pnpm add` / `npm install`（按宿主目录的包管理器） |
+| github 依赖 | 宿主清单里声明为 `github:` / git URL | GitHub | 同上，spec 为 `github:<仓库>#v<目标版本>` |
 | 手工副本 | 目录在，但宿主清单里没有声明 | **只用 GitHub 兜底** | 不自动更新，给出手动做法 |
+
+第三列的动作会**先判定宿主目录归谁管**：dsh 的 profile 是 pnpm 管理的，在那里跑 `npm install` 会打乱它的 `node_modules` 与 lockfile —— 所以有 `pnpm-workspace.yaml` / `pnpm-lock.yaml` 就走 `pnpm add`，否则才用 `npm install`。
 
 关键在最后一行：手工副本没有任何声明可查，GitHub 的 release / tag 就成了唯一来源；而既然不知道这份副本从哪来，插件就**不做**自动替换，只如实说明并给出建议（例如 `dsh plugin add github:lmr233/dsh-git-update-notifier`）。
 
@@ -323,6 +325,6 @@ dsh-git-update-notifier/
 
 ## 版本与路线图
 
-- 当前版本：`0.2.8`（发布归档：[v0.2.8](docs/releases/v0.2.8.md)、[v0.2.7](docs/releases/v0.2.7.md)、[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
+- 当前版本：`0.2.9`（发布归档：[v0.2.9](docs/releases/v0.2.9.md)、[v0.2.8](docs/releases/v0.2.8.md)、[v0.2.7](docs/releases/v0.2.7.md)、[v0.2.6](docs/releases/v0.2.6.md)、[v0.2.5](docs/releases/v0.2.5.md)、[v0.2.0](docs/releases/v0.2.0.md)、[v0.1.0](docs/releases/v0.1.0.md)）
 - 后续计划：[ROADMAP.md](ROADMAP.md)
 - 变更记录：[CHANGELOG.md](CHANGELOG.md)

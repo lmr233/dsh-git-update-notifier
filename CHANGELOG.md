@@ -3,6 +3,19 @@
 本文件记录本插件的所有值得注意的变更。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，结构参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.2.9] - 2026-09-11
+
+修掉一个**会把 dsh profile 弄坏**的缺陷：更新插件自身时用错了包管理器。
+
+### 修复
+
+- **`POST /plugin/update` 在 pnpm 管理的 profile 上跑 `npm install`**：dsh 的 profile 是 pnpm
+  管的（`pnpm-workspace.yaml` / `pnpm-lock.yaml` + `.pnpm`），在那里执行 npm 会打乱它的
+  `node_modules` 结构与 lockfile。现在会先判定目标目录的包管理器 —— 有 pnpm 元数据就用
+  `pnpm add`，否则退回 `npm install`（npx 缓存、普通 npm 项目属于后者）。失败提示里会给出
+  对应的手动命令，并附 `dsh plugin add` 作为兜底（它能处理 `minimumReleaseAge` 豁免）。
+- 新增 `packageManagerFor()` 导出与 `test/local-check.mjs` 第 12 节的判定用例。
+
 ## [0.2.8] - 2026-09-11
 
 补上一个明显的盲区：插件一直在检测 dsh 本体，却**检测不了自己**。
@@ -217,6 +230,7 @@
   模块缓存会持有已加载模块，卸载再重新挂载插件也不会重新 import。
   客户端半（`lib/client.js`）不受此限，刷新页面即可。
 
+[0.2.9]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.9
 [0.2.8]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.8
 [0.2.7]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.7
 [0.2.6]: https://github.com/lmr233/dsh-git-update-notifier/releases/tag/v0.2.6
